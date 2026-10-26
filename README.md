@@ -9,9 +9,21 @@ Play it at https://markleary.github.io/driveboston/
 
 ## Status
 
-Proof of concept: Back Bay only, daytime only, no traffic. See
-[docs/decisions.md](docs/decisions.md) for the direction and
+Proof of concept: Back Bay only (Massachusetts Avenue to the Public Garden,
+the Charles to Huntington Avenue), daytime only, no traffic. The streets,
+curbs, bridges, underpasses and 5,000 buildings are the real ones at their
+real heights, the ground is the 2025 aerial imagery, and the car collides with
+all of it. See [docs/decisions.md](docs/decisions.md) for the direction and
 [docs/perf-log.md](docs/perf-log.md) for measurements.
+
+| | |
+|---|---|
+| ![Commonwealth Avenue mall](docs/screenshots/comm-ave-mall.jpg) | ![Newbury Street](docs/screenshots/newbury-street.jpg) |
+| ![Copley Square](docs/screenshots/copley-square.jpg) | ![The Esplanade](docs/screenshots/esplanade-edge.jpg) |
+| ![The Prudential block](docs/screenshots/prudential-block.jpg) | ![Aerial over Commonwealth Avenue](docs/screenshots/aerial-comm-ave.jpg) |
+
+Screenshots are captured by the browser test (`npm run test:e2e`), so they
+track the current build.
 
 ## Controls
 
@@ -22,9 +34,14 @@ Proof of concept: Back Bay only, daytime only, no traffic. See
 | Shift | Boost |
 | Space | Handbrake |
 | R | Reset the car to the nearest road |
-| V | Cycle camera (chase, first person) |
+| V | Cycle camera (chase, first person, aerial) |
+| H | Hide or show the HUD |
 | Mouse drag and wheel | Orbit and zoom the chase camera |
 | ` (backtick) | Developer overlay and tuning panel |
+
+URL options: `?spawn=Newbury` starts at the first spawn whose name contains the
+text (the spawn list is in the developer overlay's hooks), `?dev` opens the
+developer tools, `?webgl` forces the WebGL 2 renderer.
 
 ## Running locally
 
@@ -37,8 +54,9 @@ npm run dev
 
 The dev server runs at http://127.0.0.1:5188/driveboston/.
 
-Other commands: `npm test` (unit tests), `npm run test:e2e` (browser smoke test
-and screenshots, needs `npx playwright install chromium` once), `npm run build`
+Other commands: `npm test` (unit tests), `npm run test:e2e` (browser tests:
+smoke, a scripted lap of Back Bay and the screenshots; needs
+`npx playwright install chromium` once), `npm run build`
 (static site in `dist/`), `npm run check` (refuses secrets and other forbidden
 content), `npm run geo -- --box backbay` (rebuilds the world data from the
 downloaded sources, see `tools/`).

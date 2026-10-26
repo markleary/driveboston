@@ -65,6 +65,30 @@ modes follow on the same foundation.
 Code MIT. NOTICE.md lists every data source with its licence and attribution.
 OSM-derived geometry is marked as an ODbL derivative database.
 
+## D14. Runtime world construction
+The 2 m terrain grid is the ground for both rendering and physics: one mesh and
+one Rapier heightfield collider per 256 m chunk, with roads burned flat at
+their profiles and sidewalks 15 cm higher. Buildings are extruded at load time
+from their footprint rings (walls plus an earcut roof) into one mesh and one
+triangle-mesh collider per chunk, so the data file stays small. Curbs are a
+granite face and a top strip along the traced curb lines. Bridge decks are
+separate slabs with parapets and piers that follow the link profile, and the
+terrain keeps the real cut or water underneath so underpasses stay drivable.
+Tunnels are not drivable in the proof of concept.
+
+## D15. Ground shading from imagery and classes
+The aerial imagery is the base colour everywhere, and the 1 m ground-class
+mask (stored as road, sidewalk, grass and water weights so edges blend) decides
+how much procedural asphalt, concrete or turf is mixed in. Bright imagery
+pixels on roads are kept as paint, so real crosswalks and lane lines show
+without a separate marking pass; procedural lane paint waits for a later phase.
+
+## D16. Car model in physics
+Rapier's raycast vehicle controller on a cuboid chassis with the centre of mass
+lowered, the car's forward axis along +x (the controller's default) and the
+compass heading mapped onto it. Brake values are Rapier's per-step impulse caps,
+not newtons, and are tuned by measurement.
+
 ## Log
 
 | Date | Change | Why |
@@ -73,3 +97,4 @@ OSM-derived geometry is marked as an ODbL derivative database.
 | 2026-10-26 | Proof of concept scoped to Back Bay with the basics only | Get something playable early, then grow it |
 | 2026-10-26 | Road graph built from OpenStreetMap ways first; city centreline and MassDOT joins deferred | OSM carries node topology, one-way flags and bridge and tunnel tags in one network |
 | 2026-10-26 | Paid hosting acceptable if free limits constrain realism; desktop GPU is the target platform | Owner's direction |
+| 2026-10-26 | Runtime: heightfield terrain, runtime building extrusion, bridge decks, imagery-plus-class ground shading | Back Bay demo (P1) built and driven by the bot |

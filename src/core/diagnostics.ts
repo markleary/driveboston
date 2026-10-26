@@ -7,7 +7,7 @@ export interface Diagnostics {
   backend: string;
   frame: number;
   fps: { median: number; p95: number };
-  car: { x: number; y: number; z: number; speedMph: number; street: string };
+  car: { x: number; y: number; z: number; speedMph: number; headingDeg: number; street: string };
   render: { calls: number; triangles: number };
   physics: { bodies: number; colliders: number; stepMs: number };
   errors: string[];
@@ -18,6 +18,10 @@ export interface TestHooks {
   teleportTo(name: string): void;
   setCamera(mode: string): void;
   listSpawns(): string[];
+  /** Overrides the keyboard with a scripted driving intent; null gives control back. */
+  setIntent(intent: { throttle: number; steer: number; handbrake?: boolean; boost?: boolean } | null): void;
+  /** Snaps the car back onto the nearest road. */
+  resetToRoad(): void;
 }
 
 declare global {
@@ -33,7 +37,7 @@ export function createDiagnostics(backend: string): Diagnostics {
     backend,
     frame: 0,
     fps: { median: 0, p95: 0 },
-    car: { x: 0, y: 0, z: 0, speedMph: 0, street: '' },
+    car: { x: 0, y: 0, z: 0, speedMph: 0, headingDeg: 0, street: '' },
     render: { calls: 0, triangles: 0 },
     physics: { bodies: 0, colliders: 0, stepMs: 0 },
     errors: [],
