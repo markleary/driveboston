@@ -1,0 +1,3 @@
+#!/bin/sh
+# Blocks commits that contain secrets, em dashes or the reference project names.
+node tools/check-forbidden.mjs --staged

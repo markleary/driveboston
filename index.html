@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#1c1f26" />
+    <meta name="description" content="Drive Boston: a browser driving game set in the real streets of Boston." />
+    <link rel="icon" href="/driveboston/favicon.svg" type="image/svg+xml" />
+    <title>Drive Boston</title>
+  </head>
+  <body>
+    <canvas id="game-canvas" aria-label="Drive Boston game view"></canvas>
+    <div id="hud" aria-live="polite">
+      <div id="hud-speed"><span id="speed-value">0</span><span class="unit">mph</span></div>
+      <div id="hud-street"><span id="street-name"></span><span id="cross-street"></span></div>
+    </div>
+    <div id="loading">
+      <div class="panel">
+        <h1>Drive Boston</h1>
+        <p id="loading-status">Starting</p>
+        <progress id="loading-progress" max="100" value="0"></progress>
+      </div>
+    </div>
+    <div id="badge" title="Renderer backend"></div>
+    <footer id="credits">
+      Map data © OpenStreetMap contributors · Imagery MassGIS · Elevation USGS 3DEP · Buildings City of Boston ·
+      <a href="https://github.com/markleary/driveboston/blob/main/NOTICE.md" target="_blank" rel="noopener">notices</a>
+    </footer>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

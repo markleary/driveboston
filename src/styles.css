@@ -1,0 +1,169 @@
+:root {
+  --ink: #e8e6e1;
+  --ink-dim: #a9a7a1;
+  --panel: rgba(18, 20, 26, 0.72);
+  --accent: #c8553d;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: var(--ink);
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #1c1f26;
+}
+
+#game-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+#hud {
+  position: fixed;
+  left: 24px;
+  bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+#hud-speed {
+  font-size: 56px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+#hud-speed .unit {
+  font-size: 18px;
+  margin-left: 8px;
+  color: var(--ink-dim);
+}
+
+#hud-street {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#street-name {
+  font-size: 22px;
+  font-weight: 500;
+}
+
+#cross-street {
+  font-size: 14px;
+  color: var(--ink-dim);
+}
+
+#cross-street:not(:empty)::before {
+  content: "next: ";
+}
+
+#badge {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--ink-dim);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#credits {
+  position: fixed;
+  right: 12px;
+  bottom: 10px;
+  font-size: 11px;
+  color: var(--ink-dim);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+#credits a {
+  color: var(--ink);
+}
+
+#loading {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, #2a2f3a 0%, #14161c 100%);
+  transition: opacity 0.6s ease;
+  z-index: 10;
+}
+
+#loading.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#loading .panel {
+  width: min(420px, 80vw);
+  text-align: center;
+}
+
+#loading h1 {
+  font-weight: 300;
+  font-size: 40px;
+  letter-spacing: 0.04em;
+  margin: 0 0 12px;
+}
+
+#loading p {
+  color: var(--ink-dim);
+  margin: 0 0 16px;
+  min-height: 1.4em;
+}
+
+#loading progress {
+  width: 100%;
+  height: 4px;
+  appearance: none;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+#loading progress::-webkit-progress-bar {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+#loading progress::-webkit-progress-value {
+  background: var(--accent);
+}
+
+#dev-overlay {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  padding: 8px 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+#dev-overlay.hidden,
+#hud.hidden {
+  display: none;
+}
+
+.lil-gui.root {
+  --width: 320px;
+  top: 12px !important;
+  right: 12px !important;
+}

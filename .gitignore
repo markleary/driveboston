@@ -1,0 +1,26 @@
+# Local planning document and secrets: never committed
+PLAN.md
+.env
+.env.*
+
+# Downloaded source data (reproducible from the manifest)
+data/raw/
+
+# Build and tooling output
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+coverage/
+artifacts/
+playwright-report/
+test-results/
+blob-report/
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
