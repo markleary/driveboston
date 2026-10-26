@@ -1,0 +1,11 @@
+[
+  { "name": "Commonwealth Avenue at Dartmouth Street", "street": "Commonwealth Avenue", "cross": "Dartmouth Street", "heading": 250 },
+  { "name": "Newbury Street at Exeter Street", "street": "Newbury Street", "cross": "Exeter Street", "heading": 250 },
+  { "name": "Copley Square", "street": "Boylston Street", "cross": "Dartmouth Street", "heading": 70 },
+  { "name": "Beacon Street at Clarendon Street", "street": "Beacon Street", "cross": "Clarendon Street", "heading": 250 },
+  { "name": "Marlborough Street at Fairfield Street", "street": "Marlborough Street", "cross": "Fairfield Street", "heading": 70 },
+  { "name": "Massachusetts Avenue at Marlborough Street", "street": "Massachusetts Avenue", "cross": "Marlborough Street", "heading": 340 },
+  { "name": "Huntington Avenue at Belvidere Street", "street": "Huntington Avenue", "cross": "Belvidere Street", "heading": 250 },
+  { "name": "Boylston Street at Berkeley Street", "street": "Boylston Street", "cross": "Berkeley Street", "heading": 70 },
+  { "name": "Storrow Drive at the Esplanade", "lat": 42.35440, "lon": -71.07950, "heading": 68 }
+]
