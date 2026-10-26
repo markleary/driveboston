@@ -28,8 +28,11 @@ export default defineConfig({
         // headless shell has no GPU backend.
         channel: 'chromium',
         viewport: { width: 1600, height: 900 },
+        // Hosted CI runners have no usable GPU: WebGPU initialises on a software
+        // adapter and then drops its instance, so the flags stay off there and
+        // both variants exercise the WebGL 2 path.
         launchOptions: {
-          args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--ignore-gpu-blocklist'],
+          args: process.env.CI ? [] : ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--ignore-gpu-blocklist'],
         },
       },
     },

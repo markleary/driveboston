@@ -5,7 +5,7 @@
 // file does not name them either). Usage:
 //   node tools/check-forbidden.mjs            # every tracked file
 //   node tools/check-forbidden.mjs --staged   # files staged for commit
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const encodedNames = ['c2xvcC1zYW5mcmFuY2lzY28=', 'c2xvcC1uZXd5b3Jr', 'c2xvcC1zYW4gZnJhbmNpc2Nv', 'c2xvcCBuZXcgeW9ya18='];
@@ -20,15 +20,15 @@ const rules = [
 
 const binaryExt = /\.(png|jpe?g|webp|gif|ico|mp3|ogg|wav|bin|gz|zip|woff2?|ttf|pdf|tif|tiff|laz|las)$/i;
 const staged = process.argv.includes('--staged');
-const listCmd = staged ? 'git diff --cached --name-only --diff-filter=ACMR' : 'git ls-files';
-const files = execSync(listCmd, { encoding: 'utf8' }).split('\n').filter(Boolean);
+const listArgs = staged ? ['diff', '--cached', '--name-only', '--diff-filter=ACMR', '-z'] : ['ls-files', '-z'];
+const files = execFileSync('git', listArgs, { encoding: 'utf8' }).split('\0').filter(Boolean);
 
 let failures = 0;
 for (const file of files) {
   if (binaryExt.test(file) || file === 'package-lock.json') continue;
   let text;
   try {
-    text = staged ? execSync(`git show :${JSON.stringify(file)}`, { encoding: 'utf8' }) : readFileSync(file, 'utf8');
+    text = staged ? execFileSync('git', ['show', `:${file}`], { encoding: 'utf8' }) : readFileSync(file, 'utf8');
   } catch {
     continue;
   }
