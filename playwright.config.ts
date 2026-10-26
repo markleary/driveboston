@@ -4,8 +4,13 @@ import { defineConfig, devices } from '@playwright/test';
 // timed driving phases flaky.
 export default defineConfig({
   testDir: './tests/e2e',
+  // Hosted runners have no GPU and render this scene in software at well under
+  // one frame per second, which puts the fixed-step simulation into slow
+  // motion; the timed driving tests only mean something on a real GPU, so CI
+  // keeps the smoke tests and gives them minutes instead of seconds.
+  testIgnore: process.env.CI ? ['**/drive.spec.ts'] : [],
   workers: 1,
-  timeout: 120_000,
+  timeout: process.env.CI ? 300_000 : 120_000,
   expect: { timeout: 10_000 },
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {

@@ -50,6 +50,8 @@ jobs:
   e2e:
     needs: build
     runs-on: ubuntu-latest
+    # Software rendering is slow; cap the minutes a bad run can spend.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
