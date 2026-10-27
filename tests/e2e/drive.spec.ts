@@ -8,7 +8,10 @@ import type { Diagnostics } from '../../src/core/diagnostics.ts';
  * eastbound from Massachusetts Avenue, Berkeley Street northbound, Beacon
  * Street westbound, Massachusetts Avenue southbound and back onto
  * Commonwealth Avenue. Coordinates are road-graph junctions in the world frame;
- * the bot aims a lane's width right of each so it keeps to the right-hand lane.
+ * the bot follows a line to the right of each leg (a lane's width, or `right`
+ * metres where the street is wider), steering at a point ahead on it, and
+ * takes each turn aiming at the next leg's line, so it keeps to its lane. After
+ * the game's reset it puts itself back on its leg if the reset left it elsewhere.
  */
 const ROUTE = [
   { name: 'Commonwealth Avenue at Massachusetts Avenue', x: -2144.3, z: 832.0, turn: false },
@@ -17,12 +20,18 @@ const ROUTE = [
   { name: 'Beacon Street at Berkeley Street', x: -1012.7, z: 176.3, turn: true },
   { name: 'Beacon Street at Dartmouth Street', x: -1372.1, z: 303.5, turn: false },
   { name: 'Beacon Street at Massachusetts Avenue', x: -2222.7, z: 616.8, turn: true },
-  { name: 'Commonwealth Avenue at Massachusetts Avenue again', x: -2144.3, z: 832.0, turn: true },
+  { name: 'Commonwealth Avenue at Massachusetts Avenue again', x: -2144.3, z: 832.0, turn: true, right: 2.4 },
   { name: 'Commonwealth Avenue east of Massachusetts Avenue', x: -2087.9, z: 811.5, turn: false },
 ];
 /** On the Commonwealth Avenue surface lane 20 m west of its mid-block node, so the car starts on the ribbon. */
 const START = { x: -2208.2, z: 839.5, headingDeg: 76 };
 const LANE_RIGHT_M = 1.6;
+/** Pure-pursuit lookahead at speed; shorter at low speed so the car settles into its lane after a turn. */
+const LOOKAHEAD_M = 18;
+/** The turn begins this far before the junction node... */
+const TURN_START_M = 14;
+/** ...aiming this far past it along the next leg. */
+const TURN_EXIT_M = 12;
 
 const SCREENSHOTS = [
   { file: 'comm-ave-mall', spawn: 'Commonwealth Avenue at Dartmouth Street', camera: 'chase' },
@@ -32,6 +41,18 @@ const SCREENSHOTS = [
   { file: 'prudential-block', spawn: 'Huntington Avenue at Belvidere Street', camera: 'chase' },
   { file: 'aerial-comm-ave', spawn: 'Commonwealth Avenue at Dartmouth Street', camera: 'aerial' },
 ];
+
+/** Where the bot got stuck and what traffic was near it, for a failing lap's report. */
+interface StuckReport {
+  t: number;
+  waypoint: string;
+  x: number;
+  z: number;
+  headingDeg: number;
+  street: string;
+  ground: number;
+  near: { ahead: number; right: number; headingDeg: number }[];
+}
 
 interface LapResult {
   reached: string[];
@@ -43,6 +64,7 @@ interface LapResult {
   calls: number;
   triangles: number;
   heapMb: number;
+  stuck: StuckReport[];
 }
 
 async function canvasIsNotBlank(page: Page): Promise<{ ok: boolean; variance: number; buckets: number }> {
@@ -111,17 +133,33 @@ test.describe('driving', () => {
     const loadSeconds = (Date.now() - loadStart) / 1000;
 
     const lap = await page.evaluate(
-      async ({ route, start, laneRight }) => {
+      async ({ route, start, laneRight, lookaheadMax, turnStart, turnExit }) => {
         const hooks = window.__DRIVE_BOSTON_HOOKS__!;
         const diag = window.__DRIVE_BOSTON__!;
         hooks.teleport(start.x, start.z, start.headingDeg);
         hooks.setCamera('chase');
         await new Promise((r) => setTimeout(r, 1000));
-        const result: LapResult = { reached: [], resets: 0, seconds: 0, topMph: 0, fpsSamples: [], stepMs: [], calls: 0, triangles: 0, heapMb: 0 };
+        const result: LapResult = { reached: [], resets: 0, seconds: 0, topMph: 0, fpsSamples: [], stepMs: [], calls: 0, triangles: 0, heapMb: 0, stuck: [] };
         const t0 = performance.now();
         let index = 0;
         let slowSince = 0;
         let lastSample = 0;
+        let recoverIn = 0;
+        const describeStuck = (): StuckReport => {
+          const car = diag.car;
+          const hx = Math.sin((car.headingDeg * Math.PI) / 180);
+          const hz = -Math.cos((car.headingDeg * Math.PI) / 180);
+          const poses = hooks.trafficPoses();
+          const near: StuckReport['near'] = [];
+          for (let i = 0; i < poses.length; i += 4) {
+            const dx = poses[i] - car.x;
+            const dz = poses[i + 1] - car.z;
+            if (Math.hypot(dx, dz) > 12) continue;
+            const headingDeg = Math.round(((Math.atan2(poses[i + 2], -poses[i + 3]) * 180) / Math.PI + 360) % 360);
+            near.push({ ahead: Math.round((dx * hx + dz * hz) * 10) / 10, right: Math.round((dz * hx - dx * hz) * 10) / 10, headingDeg });
+          }
+          return { t: Math.round(result.seconds), waypoint: route[index].name, x: Math.round(car.x), z: Math.round(car.z), headingDeg: Math.round(car.headingDeg), street: car.street, ground: hooks.groundClassAt(car.x, car.z), near };
+        };
         await new Promise<void>((resolve) => {
           const timer = setInterval(() => {
             const now = performance.now();
@@ -134,12 +172,38 @@ test.describe('driving', () => {
             }
             const car = diag.car;
             const wp = route[index];
-            // Aim a lane's width right of the junction node to keep to the right-hand lane.
-            const from = index > 0 ? route[index - 1] : start;
-            const leg = Math.hypot(wp.x - from.x, wp.z - from.z);
-            const dx = wp.x - ((wp.z - from.z) / leg) * laneRight - car.x;
-            const dz = wp.z + ((wp.x - from.x) / leg) * laneRight - car.z;
-            const dist = Math.hypot(dx, dz);
+            // Follow the line right of the leg between nodes, steering at a point ahead on it; close to a turn, aim at the next leg's line past the node.
+            const dist = Math.hypot(wp.x - car.x, wp.z - car.z);
+            const lookahead = Math.max(8, Math.min(lookaheadMax, car.speedMph * 0.447 * 1.2));
+            const legFrame = (a: { x: number; z: number }, b: { x: number; z: number; right?: number }) => {
+              const legX = b.x - a.x;
+              const legZ = b.z - a.z;
+              const leg = Math.hypot(legX, legZ);
+              const ux = legX / leg;
+              const uz = legZ / leg;
+              const right = b.right ?? laneRight;
+              return {
+                leg,
+                headingDeg: ((Math.atan2(ux, -uz) * 180) / Math.PI + 360) % 360,
+                progress: (car.x - a.x) * ux + (car.z - a.z) * uz,
+                lateral: (car.z - a.z) * ux - (car.x - a.x) * uz - right,
+                at: (s: number) => ({ x: a.x + ux * s - uz * right, z: a.z + uz * s + ux * right }),
+              };
+            };
+            const frame = legFrame(index > 0 ? route[index - 1] : start, wp);
+            if (recoverIn > 0 && (recoverIn -= 1) === 0) {
+              // The game's reset put the car on the nearest road facing its lawful way; if that is off the route, put it back on this leg.
+              const off = ((frame.headingDeg - car.headingDeg + 540) % 360) - 180;
+              if (Math.abs(frame.lateral) > 5 || frame.progress < -10 || Math.abs(off) > 60) {
+                const p = frame.at(Math.max(0, Math.min(frame.leg, frame.progress - 8)));
+                hooks.teleport(p.x, p.z, frame.headingDeg);
+                return;
+              }
+            }
+            const next = route[index + 1];
+            const aim = wp.turn && dist < turnStart && next ? legFrame(wp, next).at(turnExit) : frame.at(Math.min(frame.leg, frame.progress + lookahead));
+            const dx = aim.x - car.x;
+            const dz = aim.z - car.z;
             const bearing = ((Math.atan2(dx, -dz) * 180) / Math.PI + 360) % 360;
             const error = ((bearing - car.headingDeg + 540) % 360) - 180;
             if (dist < 9 || (dist < 18 && Math.abs(error) > 100)) {
@@ -158,8 +222,10 @@ test.describe('driving', () => {
             if (car.speedMph < 1.5 && throttle > 0) {
               if (!slowSince) slowSince = now;
               else if (now - slowSince > 4000) {
+                result.stuck.push(describeStuck());
                 hooks.resetToRoad();
                 result.resets += 1;
+                recoverIn = 3;
                 slowSince = 0;
               }
             } else slowSince = 0;
@@ -177,12 +243,13 @@ test.describe('driving', () => {
         result.heapMb = memory ? memory.usedJSHeapSize / 1048576 : 0;
         return result;
       },
-      { route: ROUTE, start: START, laneRight: LANE_RIGHT_M },
+      { route: ROUTE, start: START, laneRight: LANE_RIGHT_M, lookaheadMax: LOOKAHEAD_M, turnStart: TURN_START_M, turnExit: TURN_EXIT_M },
     );
     await testInfo.attach('lap', { body: JSON.stringify(lap, null, 2), contentType: 'application/json' });
     const traffic = await page.evaluate(() => window.__DRIVE_BOSTON__!.traffic);
     console.log(`traffic: ${traffic.cars} cars driving, ${traffic.parked} parked`);
     console.log(`lap: ${lap.reached.length}/${ROUTE.length} waypoints in ${lap.seconds.toFixed(0)} s, top ${lap.topMph.toFixed(0)} mph, resets ${lap.resets}`);
+    for (const s of lap.stuck) console.log(`stuck at ${s.t} s heading for ${s.waypoint}: (${s.x}, ${s.z}) on ${s.street} heading ${s.headingDeg}, ground ${s.ground}, traffic within 12 m ${JSON.stringify(s.near)}`);
     const medians = lap.fpsSamples.map((s) => s.median).sort((a, b) => a - b);
     const p95s = lap.fpsSamples.map((s) => s.p95).sort((a, b) => a - b);
     const steps = [...lap.stepMs].sort((a, b) => a - b);

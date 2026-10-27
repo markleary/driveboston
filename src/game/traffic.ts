@@ -169,6 +169,8 @@ const newPose = (): Pose => ({ x: 0, y: 0, z: 0, dx: 1, dz: 0 });
 
 export class Traffic {
   readonly mesh: THREE.InstancedMesh;
+  /** x, z, dx, dz per car as last drawn, for the minimap. */
+  readonly positions: Float32Array;
   private readonly cars: Car[] = [];
   private readonly byNode = new Map<number, LinkPath[]>();
   private readonly candidates: LinkPath[];
@@ -205,6 +207,7 @@ export class Traffic {
       );
     });
     this.totalLength = this.candidates.reduce((s, p) => s + p.length, 0);
+    this.positions = new Float32Array(count * 4);
     this.mesh = new THREE.InstancedMesh(createCarGeometry('high'), createCarPaint(), count);
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.castShadow = true;
@@ -237,7 +240,7 @@ export class Traffic {
 
   /** x, z, dx, dz per car, for the tests. */
   poses(): number[] {
-    return this.cars.flatMap((c) => [c.cur.x, c.cur.z, c.cur.dx, c.cur.dz]);
+    return Array.from(this.positions.subarray(0, this.cars.length * 4));
   }
 
   /** Moves any car within `radius` of a point somewhere else, for teleports. */
@@ -452,6 +455,10 @@ export class Traffic {
       this.quaternion.setFromAxisAngle(this.up, yawFor(dx, dz));
       this.matrix.compose(this.position.set(x, y, z), this.quaternion, this.scale);
       this.mesh.setMatrixAt(i, this.matrix);
+      this.positions[i * 4] = x;
+      this.positions[i * 4 + 1] = z;
+      this.positions[i * 4 + 2] = dx;
+      this.positions[i * 4 + 3] = dz;
     });
     this.mesh.instanceMatrix.needsUpdate = true;
   }

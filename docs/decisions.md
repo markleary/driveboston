@@ -207,6 +207,23 @@ lanes tags (too thin in Back Bay), and streaming parked cars around the
 player (deferred until the fixed colliders cost more than the 3 ms physics
 step they do now).
 
+## D24. Minimap from the ground mask, ambient occlusion, and a controls line
+The minimap is the ground mask drawn once at one pixel per metre and blitted
+heading-up around the car every other frame, with traffic as dots and the car
+as a chevron. It needs no extra data and shows exactly what the ground
+collides as, so a road on the map is a road under the wheels. The HUD keeps
+to three things the player needs while driving (speed, street, next cross
+street) plus a controls line that fades after fourteen seconds and comes back
+with the HUD toggle. On the WebGPU path one scene pass also writes normals
+and depth for ground-truth ambient occlusion at half resolution, multiplied
+into the colour, which darkens the creases where walls meet the ground and
+cars meet the road that the sun's shadow map leaves flat (`?ao=0` turns it
+off). That pass cannot be multisampled, since WebGPU has no gather from a
+multisampled depth texture, so with occlusion on the edges are smoothed by
+FXAA after tone mapping instead of by MSAA. Rejected: a tile map (another
+download and licence for no more truth), street-name labels on the minimap
+(unreadable at this size).
+
 ## Log
 
 | Date | Change | Why |
@@ -221,4 +238,5 @@ step they do now).
 | 2026-10-27 | Terrain burn resolves roads at different levels by corridor ownership, with walls between them; road-surface scan in the pipeline report | The owner fell into a 5 m pit on Huntington Avenue where the Turnpike on-ramp's trench had been burned into the street |
 | 2026-10-27 | Real building meshes from the city's 3D model replace the extrusions they cover; models standing on the roadway are dropped | The owner compared the demo with a second prototype whose landmarks read as themselves; extruded footprints could not |
 | 2026-10-27 | Street furniture placed from the city inventories and OpenStreetMap, instanced at runtime | Visible layer: the streets were bare |
-| 2026-10-27 | Traffic on the road graph as velocity-driven dynamic bodies in their own collision group, and parked cars along the curbs, instanced | Visible layer: empty streets read as a model, not a city; kinematic bodies launched the car |
+| 2026-10-27 | Traffic on the road graph as velocity-driven dynamic bodies, and parked cars along the curbs, instanced | Visible layer: empty streets read as a model, not a city; kinematic bodies launched the car |
+| 2026-10-27 | Heading-up minimap from the ground mask; ambient occlusion on WebGPU; controls line in the HUD | Visible layer: no sense of place beyond the street name, and flat creases |

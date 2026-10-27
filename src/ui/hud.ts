@@ -5,6 +5,7 @@ export class Hud {
   private readonly street = document.getElementById('street-name') as HTMLSpanElement;
   private readonly cross = document.getElementById('cross-street') as HTMLSpanElement;
   private readonly badge = document.getElementById('badge') as HTMLDivElement;
+  private readonly hint = document.getElementById('hud-hint') as HTMLDivElement;
   private lastSpeed = -1;
   private lastStreet = '';
   private lastCross = '';
@@ -31,5 +32,10 @@ export class Hud {
 
   toggle(): void {
     this.root.classList.toggle('hidden');
+  }
+
+  /** Fades the controls line once the player has had time to read it. */
+  fadeHint(): void {
+    this.hint.classList.add('faded');
   }
 }

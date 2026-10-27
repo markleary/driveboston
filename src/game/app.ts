@@ -1,10 +1,12 @@
 import * as THREE from 'three/webgpu';
 import { createRenderer, resizeRenderer } from '../core/renderer.ts';
+import { createPostStack, type PostStack } from '../core/post.ts';
 import { Loop } from '../core/loop.ts';
 import { Input, type DriveIntent } from '../core/input.ts';
 import { createDiagnostics, type Diagnostics } from '../core/diagnostics.ts';
 import { LoadingScreen } from '../ui/loading.ts';
 import { Hud } from '../ui/hud.ts';
+import { Minimap } from '../ui/minimap.ts';
 import { loadWorld, type WorldData } from '../world/data.ts';
 import { loadChunkTextures, type ChunkTextures } from '../world/imagery.ts';
 import { buildTerrainChunk } from '../world/terrain.ts';
@@ -28,6 +30,7 @@ import { Traffic, placeParkedCars, type PlayerState } from './traffic.ts';
 const BOX = 'backbay';
 const DEFAULT_SPAWN = 'Commonwealth Avenue at Dartmouth Street';
 const TRAFFIC_CARS = 140;
+const NO_TRAFFIC = new Float32Array(0);
 
 /** Yields to the event loop so the loading bar can paint (a timer rather than rAF so hidden tabs keep loading). */
 const nextFrame = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 16));
@@ -53,8 +56,10 @@ export class App {
   private gameCamera!: GameCamera;
   private sky!: SkyRig;
   private streets!: StreetIndex;
+  private minimap!: Minimap;
   private devTools?: DevTools;
   private traffic: Traffic | null = null;
+  private post: PostStack | null = null;
   private readonly playerState: PlayerState = { x: 0, z: 0, dx: 1, dz: 0 };
   private scriptedIntent: DriveIntent | null = null;
   private readonly prevPos = new THREE.Vector3();
@@ -111,6 +116,7 @@ export class App {
     for (const w of this.carMesh.wheels) this.scene.add(w);
     this.gameCamera = new GameCamera(this.camera, this.canvas);
     this.streets = new StreetIndex(world);
+    this.minimap = new Minimap(world);
     this.installHooks();
     this.devTools = new DevTools({
       scene: this.scene,
@@ -141,8 +147,11 @@ export class App {
     }
     this.diagnostics.traffic.parked = parked.count;
 
+    // Ambient occlusion needs the WebGPU path's multiple render targets; `?ao=0` turns it off.
+    if (backend === 'webgpu' && params.get('ao') !== '0') this.post = createPostStack(renderer, this.scene, this.camera);
     this.loading.set('Ready', 1);
     this.loading.hide();
+    window.setTimeout(() => this.hud.fadeHint(), 14000);
     this.diagnostics.ready = true;
     this.loop.start();
   }
@@ -345,7 +354,10 @@ export class App {
   private frame(dt: number, alpha: number): void {
     if (this.input.consume('KeyR')) this.resetToRoad();
     if (this.input.consume('KeyV')) this.gameCamera.cycle();
-    if (this.input.consume('KeyH')) this.hud.toggle();
+    if (this.input.consume('KeyH')) {
+      this.hud.toggle();
+      this.minimap.toggle();
+    }
     if (this.input.consume('Backquote')) this.devTools?.toggle();
     this.input.endFrame();
 
@@ -366,7 +378,8 @@ export class App {
     this.traffic?.frame(alpha);
     this.sky.follow(this.renderPos);
     resizeRenderer(this.renderer, this.camera);
-    this.renderer.render(this.scene, this.camera);
+    if (this.post) this.post.render();
+    else this.renderer.render(this.scene, this.camera);
 
     const d = this.diagnostics;
     d.frame = this.loop.frameCount;
@@ -376,6 +389,7 @@ export class App {
       this.streetLabel = this.streets.describe(this.curPos.x, this.curPos.z, this.forward.x, this.forward.z);
     }
     this.hud.update(speedMph, this.streetLabel.street, this.streetLabel.cross);
+    if (d.frame % 2 === 0) this.minimap.update(this.curPos.x, this.curPos.z, this.vehicle.headingDeg, this.traffic?.positions ?? NO_TRAFFIC);
     d.car.x = this.curPos.x;
     d.car.y = this.curPos.y;
     d.car.z = this.curPos.z;
