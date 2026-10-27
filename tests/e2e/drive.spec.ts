@@ -19,7 +19,8 @@ const ROUTE = [
   { name: 'Commonwealth Avenue at Massachusetts Avenue again', x: -2144.3, z: 832.0, turn: true },
   { name: 'Commonwealth Avenue east of Massachusetts Avenue', x: -2087.9, z: 811.5, turn: false },
 ];
-const START = { x: -2192.8, z: 844.1, headingDeg: 76 };
+/** On the Commonwealth Avenue surface lane 20 m west of its mid-block node, so the car starts on the ribbon. */
+const START = { x: -2208.2, z: 839.5, headingDeg: 76 };
 
 const SCREENSHOTS = [
   { file: 'comm-ave-mall', spawn: 'Commonwealth Avenue at Dartmouth Street', camera: 'chase' },
@@ -77,7 +78,7 @@ test.describe('driving', () => {
       const hooks = window.__DRIVE_BOSTON_HOOKS__!;
       const diag = window.__DRIVE_BOSTON__!;
       const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-      hooks.teleport(-2192.8, 844.1, 76);
+      hooks.teleport(-2208.2, 839.5, 76);
       await sleep(800);
       hooks.setIntent({ throttle: 1, steer: 0 });
       await sleep(2500);

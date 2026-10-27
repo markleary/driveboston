@@ -102,20 +102,33 @@ export function buildGround(
   const blocker = (i: number, j: number): boolean => {
     if (i < 0 || j < 0 || i >= W || j >= H) return false;
     const k = j * W + i;
-    return sidewalkMask[k] === 1 || buildingMask[k] === 1 || mask[k] === GROUND.water;
+    const c = mask[k];
+    return sidewalkMask[k] === 1 || buildingMask[k] === 1 || c === GROUND.water || c === GROUND.grass || c === GROUND.paved || c === GROUND.parking || c === GROUND.rail;
   };
   let measured = 0;
+  const shifts: number[] = [];
   for (const l of graph.links) {
     if (!l.drivable || l.bridge) continue;
     // Alleys run between walls and lots, where a perpendicular march finds the wrong edge; keep their tag or default.
     if (l.cls === 'service') continue;
     const result = measureWidth(spec, l, blocker);
-    if (result && result >= 5) {
-      l.width = result;
+    if (result && result.width >= 5) {
+      l.width = result.width;
       l.widthSource = 'measured';
       measured += 1;
+      // OpenStreetMap centrelines sit a metre or two off the middle of many streets;
+      // the curbs say where the middle is, so the line moves there, easing back to
+      // its nodes so links still meet.
+      if (result.left !== null && result.right !== null) {
+        const shift = Math.max(-3, Math.min(3, (result.right - result.left) / 2));
+        if (Math.abs(shift) > 0.3) {
+          recentre(l.pts, shift);
+          shifts.push(Math.abs(shift));
+        }
+      }
     }
   }
+  shifts.sort((a, b) => a - b);
 
   // Signed distance to the road edge and the road elevation nearest each cell.
   const sdf = new Float32Array(N).fill(1e9);
@@ -247,6 +260,7 @@ export function buildGround(
   const names = Object.entries(GROUND);
   report.push(
     `widths measured against sidewalks or walls on ${measured} of ${graph.links.filter((l) => l.drivable && !l.bridge).length} ground links`,
+    `${shifts.length} centrelines recentred between their curbs, median shift ${(shifts[shifts.length >> 1] ?? 0).toFixed(1)} m, largest ${(shifts[shifts.length - 1] ?? 0).toFixed(1)} m`,
     `${sidewalks.length} sidewalk polygons, ${demWater} DEM water cells at ${dem.waterLevel.toFixed(2)} m`,
     `road cells ${roadCells}, corner fill cells ${filled}, ${curbs.length} curb lines totalling ${(curbLength / 1000).toFixed(1)} km`,
     `ground classes: ${names.map(([n, id]) => `${n} ${(((counts.get(id) ?? 0) / N) * 100).toFixed(1)}%`).join(', ')}`,
@@ -254,18 +268,24 @@ export function buildGround(
   return { spec, mask, burned, curbs, report };
 }
 
-/** Median distance to the nearest sidewalk, wall or water on each side; null when too few samples hit. */
-function measureWidth(spec: GridSpec, l: RoadLink, blocker: (i: number, j: number) => boolean): number | null {
+/**
+ * Median distance to the nearest sidewalk, wall, water or green on each side; null
+ * when too few samples hit. The march stops a few metres past the lane-based half
+ * width and the result stays within 0.6 to 1.5 times that estimate, so a missing
+ * sidewalk or the far side of a mall cannot turn a street into a plaza.
+ */
+function measureWidth(spec: GridSpec, l: RoadLink, blocker: (i: number, j: number) => boolean): { width: number; right: number | null; left: number | null } | null {
   const samples = samplePolyline(l.pts, 4).filter((s) => s.s > 6 && s.s < polylineLength(l.pts) - 6);
   if (samples.length < 2) return null;
   const hw = l.width / 2;
+  const maxD = Math.min(30, hw + 6);
   const sides: number[][] = [[], []];
   for (const s of samples) {
     for (let side = 0; side < 2; side += 1) {
       const sign = side === 0 ? 1 : -1;
       const nx = -s.hz * sign;
       const nz = s.hx * sign;
-      for (let d = 1.5; d <= 30; d += 0.5) {
+      for (let d = 1.5; d <= maxD; d += 0.5) {
         const x = s.x + nx * d;
         const z = s.z + nz * d;
         const i = Math.floor((x - spec.originX) / spec.cell);
@@ -282,11 +302,34 @@ function measureWidth(spec: GridSpec, l: RoadLink, blocker: (i: number, j: numbe
     const sorted = arr.slice().sort((a, b) => a - b);
     return sorted[sorted.length >> 1];
   };
-  const left = half(sides[0]);
-  const right = half(sides[1]);
+  // Side 0 marches along the right-hand normal of the direction of travel.
+  const right = half(sides[0]);
+  const left = half(sides[1]);
   if (left === null && right === null) return null;
   const width = (left ?? hw) + (right ?? hw);
-  return Math.max(3.5, Math.min(40, width));
+  return { width: Math.max(3.5, Math.min(40, Math.max(0.6 * l.width, Math.min(1.5 * l.width + 1, width)))), right, left };
+}
+
+/** Moves a polyline sideways (positive to the right of travel), tapering to nothing over the last 15 m at each end. */
+function recentre(pts: Pt[], shift: number): void {
+  const n = pts.length;
+  if (n < 2) return;
+  const total = polylineLength(pts);
+  const moved: Pt[] = [];
+  let s = 0;
+  for (let i = 0; i < n; i += 1) {
+    if (i > 0) s += dist(pts[i - 1], pts[i]);
+    const prev = pts[Math.max(0, i - 1)];
+    const next = pts[Math.min(n - 1, i + 1)];
+    let dx = next[0] - prev[0];
+    let dz = next[1] - prev[1];
+    const len = Math.hypot(dx, dz) || 1;
+    dx /= len;
+    dz /= len;
+    const w = Math.min(1, s / 15, (total - s) / 15);
+    moved.push([pts[i][0] - dz * shift * w, pts[i][1] + dx * shift * w]);
+  }
+  for (let i = 0; i < n; i += 1) pts[i] = moved[i];
 }
 
 export function readGeoJson(path: string): GeoJsonCollection {

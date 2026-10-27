@@ -1,9 +1,10 @@
 # Drive Boston
 
 A browser driving game set in the real streets of Boston. The street network,
-curbs, building footprints and heights come from public geographic data; the
-ground and roofs are textured with public-domain aerial imagery; facades are
-procedural. The car is a generic sedan on a rigid-body vehicle model.
+curbs, building footprints and heights come from public geographic data; roofs,
+lawns and water are textured with public-domain aerial imagery; roads, lane
+paint, sidewalks and facades are procedural. The car is a generic sedan on a
+rigid-body vehicle model.
 
 Play it at https://markleary.github.io/driveboston/
 
@@ -12,8 +13,9 @@ Play it at https://markleary.github.io/driveboston/
 Proof of concept: Back Bay only (Massachusetts Avenue to the Public Garden,
 the Charles to Huntington Avenue), daytime only, no traffic. The streets,
 curbs, bridges, underpasses and 5,000 buildings are the real ones at their
-real heights, the ground is the 2025 aerial imagery, and the car collides with
-all of it. See [docs/decisions.md](docs/decisions.md) for the direction and
+real heights; the roads are flat asphalt with lane paint, crosswalks and stop
+lines drawn from the street network; lawns and the river keep the 2025 aerial
+imagery; and the car collides with all of it. See [docs/decisions.md](docs/decisions.md) for the direction and
 [docs/perf-log.md](docs/perf-log.md) for measurements.
 
 | | |

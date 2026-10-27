@@ -76,18 +76,53 @@ separate slabs with parapets and piers that follow the link profile, and the
 terrain keeps the real cut or water underneath so underpasses stay drivable.
 Tunnels are not drivable in the proof of concept.
 
-## D15. Ground shading from imagery and classes
-The aerial imagery is the base colour everywhere, and the 1 m ground-class
-mask (stored as road, sidewalk, grass and water weights so edges blend) decides
-how much procedural asphalt, concrete or turf is mixed in. Bright imagery
-pixels on roads are kept as paint, so real crosswalks and lane lines show
-without a separate marking pass; procedural lane paint waits for a later phase.
+## D15. Ground shading by class, imagery only where it helps
+The 1 m ground-class mask (stored as road, sidewalk, grass and water weights so
+edges blend) picks the surface. Roads are pure procedural asphalt. Sidewalks
+and lots are procedural concrete and paving that take only a desaturated hint
+of a coarse mip of the imagery: enough to tell a brick block from a concrete
+one, too little for parked cars and building shadows to read as ground detail.
+Grass and water keep the imagery for its paths and canopies. The first build
+used the imagery as the base colour everywhere and kept its bright pixels on
+roads as paint; that looked like driving on a satellite photo, which is why the
+roads moved to D17.
 
 ## D16. Car model in physics
 Rapier's raycast vehicle controller on a cuboid chassis with the centre of mass
 lowered, the car's forward axis along +x (the controller's default) and the
 compass heading mapped onto it. Brake values are Rapier's per-step impulse caps,
 not newtons, and are tuned by measurement.
+
+## D17. Road surfaces and paint from the road graph
+Each drivable link is a ribbon mesh laid 3 cm above the burned terrain (5 cm on
+bridge decks), four vertices across, carrying its half width, lane width, lane
+count, one-way flag, distance along the link and its end treatments as vertex
+attributes. The material draws the paint analytically from those attributes
+with screen-space anti-aliasing: a double yellow centre line on two-way
+streets, dashed white lane dividers, a parking-lane edge line where the width
+leaves room, zebra crosswalks and stop lines where a link meets a major cross
+street, and nothing where the same street simply continues. Ribbons stop short
+of a junction by the crossing street's half width so they never overlap, and
+the terrain's road class shares one world-space asphalt with the ribbons so the
+junction fill matches. There is no paint texture atlas and no geometry per
+marking.
+
+## D18. Road widths from lanes and curbs, not width tags
+OpenStreetMap width tags in Back Bay are unreliable (Commonwealth Avenue's
+spans the mall), so a link's width is its lane count times the class lane width
+plus 2.2 m per parking side, and a tag is accepted only within 0.6 to 1.6 times
+that. The ground burn then measures the real curb-to-curb width from the
+sidewalk data on each side, clamps it, and shifts the centreline sideways by up
+to 3 m so the burn and the ribbon sit centred between the curbs (331 links
+moved, median 0.8 m). Grass, plaza, parking and rail cells stop the width
+measurement so a street cannot swallow a mall.
+
+## D19. Approach decks at cuts
+Ground links within 40 m of a bridge node take a straight profile from that
+node, and a ground link whose profile rises more than 2.5 m above another road
+it overlaps becomes a deck. The Massachusetts Avenue approaches over the
+Commonwealth Avenue cut are therefore decks rather than terrain ramps, which
+removes the 80 cm steps the burn produced where the ramp met the cut.
 
 ## Log
 
@@ -99,3 +134,4 @@ not newtons, and are tuned by measurement.
 | 2026-10-26 | Paid hosting acceptable if free limits constrain realism; desktop GPU is the target platform | Owner's direction |
 | 2026-10-26 | Runtime: heightfield terrain, runtime building extrusion, bridge decks, imagery-plus-class ground shading | Back Bay demo (P1) built and driven by the bot |
 | 2026-10-26 | Driving browser tests run only on a machine with a GPU; hosted CI keeps the smoke tests, served from the production build, with long waits | GitHub runners render in software below 1 fps, so the fixed-step simulation falls into slow motion and timed driving means nothing there; the 28-minute run also burned Actions minutes |
+| 2026-10-26 | Roads became ribbons with analytic paint; widths from lanes and measured curbs with recentring; approach decks at the Mass Ave cut; imagery kept only for grass, water, roofs and a tint | Owner's review of the demo: the roads read as a satellite photo, with terrain where the surface should be flat |

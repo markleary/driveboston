@@ -8,6 +8,12 @@ const SIDEWALK = 1.8;
 const DECK_DEPTH = 1.0;
 const PARAPET_H = 1.0;
 const PARAPET_T = 0.35;
+/** Parapets end this far from a junction so turning traffic is not walled in. */
+const JUNCTION_CLEAR = 8;
+
+function lerp3(a: Vec3, b: Vec3, t: number): Vec3 {
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+}
 const PIER_SPACING = 40;
 const ROAD_COLOR: [number, number, number] = [0.13, 0.13, 0.14];
 const WALK_COLOR: [number, number, number] = [0.55, 0.54, 0.52];
@@ -66,8 +72,12 @@ export function buildBridgeGeometry(world: WorldData): Map<number, StaticGeometr
     return g;
   };
 
+  const groundNodes = new Set<number>();
+  for (const l of world.links) if (l.drivable && !l.bridge) groundNodes.add(l.a).add(l.b);
   for (const link of world.links) {
     if (!link.bridge || !link.drivable) continue;
+    const groundAtA = groundNodes.has(link.a);
+    const groundAtB = groundNodes.has(link.b);
     const p = link.points;
     const n = p.length / 3;
     if (n < 2) continue;
@@ -100,15 +110,25 @@ export function buildBridgeGeometry(world: WorldData): Map<number, StaticGeometr
       for (let s = 0; s < 3; s += 1) {
         pushQuad(g, at(i, stations[s], top), at(i + 1, stations[s], top), at(i + 1, stations[s + 1], top), at(i, stations[s + 1], top), [0, 1, 0], colors[s]);
       }
-      for (const side of [-1, 1]) {
-        const outer = side * half;
-        const inner = side * (half - PARAPET_T);
-        const outward: Vec3 = [lat[i][0] * side, 0, lat[i][1] * side];
-        const inward: Vec3 = [-outward[0], 0, -outward[2]];
-        // Parapet: inner face, top, outer face.
-        pushQuad(g, at(i, inner, top), at(i + 1, inner, top), at(i + 1, inner, top + PARAPET_H), at(i, inner, top + PARAPET_H), inward, CONCRETE);
-        pushQuad(g, at(i, inner, top + PARAPET_H), at(i + 1, inner, top + PARAPET_H), at(i + 1, outer, top + PARAPET_H), at(i, outer, top + PARAPET_H), [0, 1, 0], CONCRETE);
-        pushQuad(g, at(i, outer, top + PARAPET_H), at(i + 1, outer, top + PARAPET_H), at(i + 1, outer, -DECK_DEPTH), at(i, outer, -DECK_DEPTH), outward, CONCRETE);
+      const segLen0 = Math.hypot(p[i * 3 + 3] - p[i * 3], p[i * 3 + 5] - p[i * 3 + 2]);
+      const pieces = Math.max(1, Math.ceil(segLen0 / 2));
+      for (let k = 0; k < pieces; k += 1) {
+        const t0 = k / pieces;
+        const t1 = (k + 1) / pieces;
+        const sMid = along + segLen0 * ((t0 + t1) / 2);
+        // Parapets stop short of a junction so turning traffic is not walled in.
+        if ((groundAtA && sMid < JUNCTION_CLEAR) || (groundAtB && total - sMid < JUNCTION_CLEAR)) continue;
+        const at2 = (s: number, dy: number, t: number): Vec3 => lerp3(at(i, s, dy), at(i + 1, s, dy), t);
+        for (const side of [-1, 1]) {
+          const outer = side * half;
+          const inner = side * (half - PARAPET_T);
+          const outward: Vec3 = [lat[i][0] * side, 0, lat[i][1] * side];
+          const inward: Vec3 = [-outward[0], 0, -outward[2]];
+          // Parapet: inner face, top, outer face.
+          pushQuad(g, at2(inner, top, t0), at2(inner, top, t1), at2(inner, top + PARAPET_H, t1), at2(inner, top + PARAPET_H, t0), inward, CONCRETE);
+          pushQuad(g, at2(inner, top + PARAPET_H, t0), at2(inner, top + PARAPET_H, t1), at2(outer, top + PARAPET_H, t1), at2(outer, top + PARAPET_H, t0), [0, 1, 0], CONCRETE);
+          pushQuad(g, at2(outer, top + PARAPET_H, t0), at2(outer, top + PARAPET_H, t1), at2(outer, -DECK_DEPTH, t1), at2(outer, -DECK_DEPTH, t0), outward, CONCRETE);
+        }
       }
       // Underside, visible from the road below.
       pushQuad(g, at(i, -half, -DECK_DEPTH), at(i + 1, -half, -DECK_DEPTH), at(i + 1, half, -DECK_DEPTH), at(i, half, -DECK_DEPTH), [0, -1, 0], [0.42, 0.41, 0.4]);

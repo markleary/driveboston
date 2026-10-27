@@ -11,6 +11,8 @@ import { buildTerrainChunk } from '../world/terrain.ts';
 import { buildBuildingGeometry, buildingGeometryToThree, createFacadeMaterial } from '../world/buildings.ts';
 import { buildCurbGeometry, createCurbMaterial, geometryFromStatic, type StaticGeometry } from '../world/curbs.ts';
 import { buildBridgeGeometry, createBridgeMaterial } from '../world/bridges.ts';
+import { buildRoadGeometry } from '../world/road-geometry.ts';
+import { createRoadMaterial, roadGeometryToThree } from '../world/road-material.ts';
 import { createSky, type SkyRig } from '../world/sky.ts';
 import { createWater } from '../world/water.ts';
 import { createPhysicsWorld, initRapier, type PhysicsWorld } from '../physics/physics.ts';
@@ -91,6 +93,7 @@ export class App {
     this.scene.add(createWater(world));
 
     await this.buildTerrain(textures);
+    await this.buildRoads();
     await this.buildStatics(textures);
     this.physics.addBoundary(world.rect, 30);
 
@@ -139,6 +142,22 @@ export class App {
           await nextFrame();
         }
       }
+    }
+  }
+
+  private async buildRoads(): Promise<void> {
+    const { world } = this;
+    this.loading.set('Painting the roads', 0.75);
+    await nextFrame();
+    const material = createRoadMaterial();
+    for (const [key, g] of buildRoadGeometry(world)) {
+      if (!g.indices.length) continue;
+      const mesh = new THREE.Mesh(roadGeometryToThree(g), material);
+      mesh.castShadow = false;
+      mesh.receiveShadow = true;
+      mesh.matrixAutoUpdate = false;
+      mesh.name = `roads ${key % world.chunksX},${Math.floor(key / world.chunksX)}`;
+      this.scene.add(mesh);
     }
   }
 

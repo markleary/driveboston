@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { rawPath } from './lib/download.ts';
 import { lonLatToLocal } from './lib/frame.ts';
-import { clipPolylineToRect, dist, samplePolyline, type Pt } from './lib/geom.ts';
+import { clipPolylineToRect, dist, projectOnSegment, samplePolyline, type Pt } from './lib/geom.ts';
 import { sampleBilinear } from './lib/raster.ts';
 import type { OsmData, OsmNode, OsmWay, OsmRelation } from './lib/overpass.ts';
 import type { LocalDem } from './terrain.ts';
@@ -97,14 +97,23 @@ function parseSpeed(v: string | undefined, cls: RoadClassName): number {
   return ROAD_CLASS[cls].speedMph * MPH;
 }
 
-function classWidth(cls: RoadClassName, lanes: number | null, service: string | undefined): { width: number; source: 'lanes' | 'class' } {
+/** Sides of the street with parking (0 to 2) from the parking tags, falling back to the class. */
+function parkingSides(t: Record<string, string | undefined>, cls: RoadClassName): number {
+  const no = (v: string | undefined) => v !== undefined && /^(no|no_parking|no_stopping|no_standing|separate)$/.test(v);
+  const yes = (v: string | undefined) => v !== undefined && /^(yes|lane|parallel|street_side|on_street|diagonal|perpendicular|marked|half_on_kerb|on_kerb)$/.test(v);
+  const both = t['parking:both'] ?? t['parking:lane:both'];
+  const left = t['parking:left'] ?? t['parking:lane:left'] ?? both;
+  const right = t['parking:right'] ?? t['parking:lane:right'] ?? both;
+  const fallback = ROAD_CLASS[cls].parking ? 1 : 0;
+  const side = (v: string | undefined) => (no(v) ? 0 : yes(v) ? 1 : fallback);
+  return side(left) + side(right);
+}
+
+/** Curb-to-curb width from the lane count, a 2.2 m parking lane per side, and the class lane width. */
+function classWidth(cls: RoadClassName, lanes: number | null, service: string | undefined, parking: number): { width: number; source: 'lanes' | 'class' } {
   const c = ROAD_CLASS[cls];
   if (cls === 'service') return { width: service === 'alley' ? 5.5 : 6, source: 'class' };
-  if (lanes) {
-    const parking = c.parking ? 4.4 : 0;
-    return { width: lanes * c.laneWidth + parking, source: 'lanes' };
-  }
-  return { width: c.width, source: 'class' };
+  return { width: (lanes ?? c.lanes) * c.laneWidth + parking * 2.2, source: lanes ? 'lanes' : 'class' };
 }
 
 /** Builds the drivable road graph and the ground polygons from the OSM download. */
@@ -163,8 +172,11 @@ export function buildRoadGraph(boxName: string, rect: LocalRect, dem: LocalDem):
     const reversed = t.oneway === '-1';
     const lanesTag = t.lanes ? parseInt(t.lanes, 10) : null;
     const lanes = lanesTag && Number.isFinite(lanesTag) ? lanesTag : null;
-    const tagWidth = parseWidth(t.width);
-    const cw = classWidth(cls, lanes, t.service);
+    const cw = classWidth(cls, lanes, t.service, parkingSides(t, cls));
+    // Width tags around here are often a lane or a sidewalk width (Beacon Street carries
+    // both 6.5 and 28.7), so a tag only counts when it is near the lane-based estimate.
+    const rawTagWidth = parseWidth(t.width);
+    const tagWidth = rawTagWidth && rawTagWidth >= 0.6 * cw.width && rawTagWidth <= 1.6 * cw.width ? rawTagWidth : null;
     const bridge = t.bridge !== undefined && t.bridge !== 'no';
     const tunnel = (t.tunnel !== undefined && t.tunnel !== 'no') || t.covered === 'yes';
     const layer = t.layer ? parseInt(t.layer, 10) || 0 : 0;
@@ -289,6 +301,7 @@ export function buildRoadGraph(boxName: string, rect: LocalRect, dem: LocalDem):
   }
 
   profileLinks(nodes, links, dem, report);
+  markApproachDecks(nodes, links, report);
 
   const byClass = new Map<string, number>();
   for (const l of links) byClass.set(l.cls, (byClass.get(l.cls) ?? 0) + 1);
@@ -387,6 +400,23 @@ function profileLinks(nodes: RoadNode[], links: RoadLink[], dem: LocalDem, repor
       nodeGround[idx] = demAt(n.x, n.z);
     }
   }
+  // A ground link that ends at a bridge samples the DEM on the abutment slope or in
+  // the cut the bridge crosses, which can only pull its end down; a deck never sits
+  // below the road leading onto it, so such a node takes the higher of its own
+  // estimate and its ground-only neighbours along short links.
+  const touchesBridge = (i: number): boolean => nodes[i].links.some((lid) => links[lid].bridge);
+  for (let i = 0; i < nodes.length; i += 1) {
+    if (!nodeHasGround[i] || !touchesBridge(i)) continue;
+    let e = nodeGround[i];
+    for (const lid of nodes[i].links) {
+      const l = links[lid];
+      if (l.bridge || l.tunnel) continue;
+      const other = l.a === i ? l.b : l.a;
+      if (other === i || !nodeHasGround[other] || touchesBridge(other)) continue;
+      if (polylineLen(l.pts) <= 30) e = Math.max(e, nodeGround[other]);
+    }
+    nodeGround[i] = e;
+  }
   // Harmonic interpolation for nodes only touched by bridges.
   const bridgeNodes = nodes.map((_, i) => i).filter((i) => !nodeHasGround[i] && nodes[i].links.some((lid) => links[lid].bridge));
   const nodeElev = Float64Array.from(nodeGround);
@@ -431,7 +461,10 @@ function profileLinks(nodes: RoadNode[], links: RoadLink[], dem: LocalDem, repor
     for (let i = 0; i < l.pts.length; i += 1) {
       if (i > 0) s += dist(l.pts[i - 1], l.pts[i]);
       const t = total > 0 ? s / total : 0;
-      if (l.bridge || !prof) {
+      // Short ground links onto a bridge run straight between their nodes: the DEM
+      // under them is the abutment slope or the cut, not the road.
+      const approach = total <= 40 && (touchesBridge(l.a) || touchesBridge(l.b));
+      if (l.bridge || !prof || approach) {
         elev[i] = ya + (yb - ya) * t;
       } else {
         // smoothed DEM, blended into the node elevations over the last 10 m so links meet exactly
@@ -465,4 +498,57 @@ function interpProfile(prof: { s: number[]; h: number[] }, s: number): number {
   }
   const t = (s - ss[lo]) / (ss[hi] - ss[lo] || 1);
   return h[lo] + (h[hi] - h[lo]) * t;
+}
+
+/** Elevation of a link at a distance along it, from its per-vertex profile. */
+function elevAlong(l: RoadLink, at: number): number {
+  let s = 0;
+  for (let i = 0; i + 1 < l.pts.length; i += 1) {
+    const seg = dist(l.pts[i], l.pts[i + 1]);
+    if (at <= s + seg || i + 2 === l.pts.length) {
+      const t = seg > 0 ? Math.max(0, Math.min(1, (at - s) / seg)) : 0;
+      return l.elev[i] + (l.elev[i + 1] - l.elev[i]) * t;
+    }
+    s += seg;
+  }
+  return l.elev[0] ?? 0;
+}
+
+/**
+ * OpenStreetMap often ends a bridge tag at the abutment while the cut below is
+ * wider, so a short ground link next to a bridge may still hang over a lower
+ * road. Such a link becomes a deck too: the terrain keeps the cut under it and
+ * the car crosses on the slab.
+ */
+function markApproachDecks(nodes: RoadNode[], links: RoadLink[], report: string[]): void {
+  const bridgeNode = nodes.map((n) => n.links.some((lid) => links[lid].bridge));
+  let approaches = 0;
+  for (const l of links) {
+    if (l.bridge || l.tunnel || !l.drivable) continue;
+    if (!(bridgeNode[l.a] || bridgeNode[l.b]) || polylineLen(l.pts) > 40) continue;
+    const samples = samplePolyline(l.pts, 2);
+    let over = false;
+    for (const m of links) {
+      if (over) break;
+      if (m === l || !m.drivable || m.tunnel || m.a === l.a || m.a === l.b || m.b === l.a || m.b === l.b) continue;
+      const reach = (l.width + m.width) / 2 + 2;
+      for (const smp of samples) {
+        if (over) break;
+        for (let k = 0; k + 1 < m.pts.length; k += 1) {
+          const pr = projectOnSegment([smp.x, smp.z], m.pts[k], m.pts[k + 1]);
+          if (pr.d2 > reach * reach) continue;
+          const em = m.elev[k] + (m.elev[k + 1] - m.elev[k]) * pr.t;
+          if (elevAlong(l, smp.s) - em > 2.5) {
+            over = true;
+            break;
+          }
+        }
+      }
+    }
+    if (over) {
+      l.bridge = true;
+      approaches += 1;
+    }
+  }
+  if (approaches) report.push(`${approaches} ground links beside bridges cross over a lower road and become decks`);
 }
