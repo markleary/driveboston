@@ -124,6 +124,26 @@ it overlaps becomes a deck. The Massachusetts Avenue approaches over the
 Commonwealth Avenue cut are therefore decks rather than terrain ramps, which
 removes the 80 cm steps the burn produced where the ramp met the cut.
 
+## D20. Corridor ownership in the terrain burn
+A ground cell belongs to the road whose corridor holds it. Corridors at one
+level that overlap, as at a junction, blend their levels by how deep the cell
+sits in each, so junction surfaces are continuous; between corridors a cell
+belongs to the nearest road. Roads more than a metre apart in level are kept
+apart: inside a street's corridor the street keeps its level even when a lower
+ramp's centreline is closer; where corridors overlap, as at a tunnel portal,
+the higher road wins; the higher road's sidewalk strip claims the lower
+corridor's cells beside it, so the wall stands 3 m out from the curb rather
+than where the 2 m physics grid would smear it into the edge lane; and the
+strip between two such corridors is never filleted into one surface. The first
+burn gave every cell the nearest centreline's level and smoothed over 12 m,
+which carved the Turnpike on-ramp's trench 5 m deep into Huntington Avenue's
+right lane and did the same along the cut at Boylston Street, Clarendon
+Street, Dalton Street and Massachusetts Avenue. The pipeline now checks the
+burned ground against every road's surface across its full width and reports
+the drops, and the test that finds hydro-flattened river cells in the lidar no
+longer counts inside road corridors, where a trench at the river's level is a
+ramp.
+
 ## Log
 
 | Date | Change | Why |
@@ -135,3 +155,4 @@ removes the 80 cm steps the burn produced where the ramp met the cut.
 | 2026-10-26 | Runtime: heightfield terrain, runtime building extrusion, bridge decks, imagery-plus-class ground shading | Back Bay demo (P1) built and driven by the bot |
 | 2026-10-26 | Driving browser tests run only on a machine with a GPU; hosted CI keeps the smoke tests, served from the production build, with long waits | GitHub runners render in software below 1 fps, so the fixed-step simulation falls into slow motion and timed driving means nothing there; the 28-minute run also burned Actions minutes |
 | 2026-10-26 | Roads became ribbons with analytic paint; widths from lanes and measured curbs with recentring; approach decks at the Mass Ave cut; imagery kept only for grass, water, roofs and a tint | Owner's review of the demo: the roads read as a satellite photo, with terrain where the surface should be flat |
+| 2026-10-27 | Terrain burn resolves roads at different levels by corridor ownership, with walls between them; road-surface scan in the pipeline report | The owner fell into a 5 m pit on Huntington Avenue where the Turnpike on-ramp's trench had been burned into the street |

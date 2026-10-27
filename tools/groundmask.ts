@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { lonLatToLocal } from './lib/frame.ts';
 import { dist, polylineLength, projectOnSegment, samplePolyline, simplify, type Pt } from './lib/geom.ts';
-import { distanceTransform, fillPolygon, marchingSquares, type GridSpec } from './lib/raster.ts';
+import { fillPolygon, marchingSquares, type GridSpec } from './lib/raster.ts';
+import { burnHeights, closeCorners, CROSSING_TOL, findLevelCrossings, rasteriseCorridors, scanRoadSurface, SIDEWALK_REACH } from './roadburn.ts';
 import type { GeoJsonCollection } from './lib/arcgis.ts';
 import type { LocalDem } from './terrain.ts';
 import type { RoadGraph, RoadLink } from './roads.ts';
@@ -23,7 +24,6 @@ export interface GroundResult {
 
 /** Fillet radius applied to concave corners of the road surface (metres). */
 const FILLET_R = 4;
-const CURB_HEIGHT = 0.15;
 
 /** Converts GeoJSON polygon features to local rings. */
 export function geoJsonToLocalRings(fc: GeoJsonCollection): { rings: Pt[][]; properties: Record<string, unknown> }[] {
@@ -83,9 +83,11 @@ export function buildGround(
   }
   // Hydro-flattened water in the DEM.
   let demWater = 0;
+  const demWaterMask = new Uint8Array(N);
   for (let k = 0; k < N; k += 1) {
-    if (Math.abs(dem.heights[k] - dem.waterLevel) < 0.06) {
+    if (mask[k] !== GROUND.water && Math.abs(dem.heights[k] - dem.waterLevel) < 0.06) {
       mask[k] = GROUND.water;
+      demWaterMask[k] = 1;
       demWater += 1;
     }
   }
@@ -130,85 +132,22 @@ export function buildGround(
   }
   shifts.sort((a, b) => a - b);
 
-  // Signed distance to the road edge and the road elevation nearest each cell.
-  const sdf = new Float32Array(N).fill(1e9);
-  const roadElev = new Float32Array(N).fill(NaN);
-  const roadDist = new Float32Array(N).fill(1e9);
-  const REACH = 12;
-  for (const l of graph.links) {
-    if (!l.drivable || l.bridge) continue;
-    const hw = l.width / 2;
-    for (let s = 0; s < l.pts.length - 1; s += 1) {
-      const a = l.pts[s];
-      const b = l.pts[s + 1];
-      const ea = l.elev[s];
-      const eb = l.elev[s + 1];
-      const r = hw + REACH;
-      const i0 = Math.max(0, Math.floor((Math.min(a[0], b[0]) - r - spec.originX) / spec.cell));
-      const i1 = Math.min(W - 1, Math.ceil((Math.max(a[0], b[0]) + r - spec.originX) / spec.cell));
-      const j0 = Math.max(0, Math.floor((Math.min(a[1], b[1]) - r - spec.originZ) / spec.cell));
-      const j1 = Math.min(H - 1, Math.ceil((Math.max(a[1], b[1]) + r - spec.originZ) / spec.cell));
-      for (let j = j0; j <= j1; j += 1) {
-        const z = spec.originZ + (j + 0.5) * spec.cell;
-        for (let i = i0; i <= i1; i += 1) {
-          const x = spec.originX + (i + 0.5) * spec.cell;
-          const pr = projectOnSegment([x, z], a, b);
-          const d = Math.sqrt(pr.d2);
-          if (d > r) continue;
-          const k = j * W + i;
-          const v = d - hw;
-          if (v < sdf[k]) sdf[k] = v;
-          if (d < roadDist[k]) {
-            roadDist[k] = d;
-            roadElev[k] = ea + (eb - ea) * pr.t;
-          }
-        }
-      }
+  // Each cell belongs to the road whose corridor holds it. Where roads at
+  // different levels meet, the higher one keeps its surface and the join is a
+  // wall, not a fillet (docs/decisions.md D20).
+  const groundLinks = graph.links.filter((l) => l.drivable && !l.bridge);
+  const field = rasteriseCorridors(spec, groundLinks);
+  // A ramp trench at the river's level is not water: the hydro-flattening test
+  // only counts beyond the roads' sidewalk strips.
+  let demotedWater = 0;
+  for (let k = 0; k < N; k += 1) {
+    if (demWaterMask[k] && field.sdf[k] < SIDEWALK_REACH) {
+      mask[k] = GROUND.lot;
+      demotedWater += 1;
     }
   }
-
-  // Close concave corners: dilate then erode by the fillet radius.
-  const roadMask = new Uint8Array(N);
-  for (let k = 0; k < N; k += 1) roadMask[k] = sdf[k] < 0 ? 1 : 0;
-  const dIn = distanceTransform(roadMask, W, H);
-  const notDilated = new Uint8Array(N);
-  for (let k = 0; k < N; k += 1) notDilated[k] = dIn[k] < FILLET_R ? 0 : 1;
-  const dOut = distanceTransform(notDilated, W, H);
-  const closed = new Uint8Array(N);
-  for (let k = 0; k < N; k += 1) closed[k] = dOut[k] >= FILLET_R ? 1 : 0;
-  const notClosed = new Uint8Array(N);
-  for (let k = 0; k < N; k += 1) notClosed[k] = closed[k] ? 0 : 1;
-  const dToEdge = distanceTransform(notClosed, W, H);
-  const finalSdf = new Float32Array(N);
-  let filled = 0;
-  for (let k = 0; k < N; k += 1) {
-    if (sdf[k] < 0) finalSdf[k] = sdf[k];
-    else if (closed[k]) {
-      finalSdf[k] = -Math.max(0.5, dToEdge[k]);
-      filled += 1;
-    } else finalSdf[k] = Math.min(sdf[k], 50);
-  }
-  // Filled corners need an elevation too: take the nearest recorded road elevation.
-  for (let k = 0; k < N; k += 1) {
-    if (finalSdf[k] < 0 && Number.isNaN(roadElev[k])) {
-      const i = k % W;
-      const j = (k - i) / W;
-      let best = NaN;
-      let bestD = Infinity;
-      for (let dj = -6; dj <= 6; dj += 1) for (let di = -6; di <= 6; di += 1) {
-        const ii = i + di;
-        const jj = j + dj;
-        if (ii < 0 || jj < 0 || ii >= W || jj >= H) continue;
-        const kk = jj * W + ii;
-        const dd = di * di + dj * dj;
-        if (!Number.isNaN(roadElev[kk]) && roadDist[kk] < 1e8 && dd < bestD) {
-          bestD = dd;
-          best = roadElev[kk];
-        }
-      }
-      roadElev[k] = Number.isNaN(best) ? dem.heights[k] : best;
-    }
-  }
+  const { finalSdf, filled, splitCells } = closeCorners(spec, field, FILLET_R);
+  const roadElev = field.elev;
 
   // Curb lines from the zero level set.
   const lines = marchingSquares(finalSdf, W, H, 0);
@@ -231,24 +170,9 @@ export function buildGround(
   }
 
   // Burn the heights: flat road surface, sidewalks a curb above it, water below its plane.
-  const burned = new Float32Array(dem.heights);
-  let roadCells = 0;
-  for (let k = 0; k < N; k += 1) {
-    const f = finalSdf[k];
-    const re = roadElev[k];
-    const hasRoad = !Number.isNaN(re) && roadDist[k] < 1e8;
-    if (f < 0) {
-      burned[k] = hasRoad ? re : dem.heights[k];
-      roadCells += 1;
-    } else if (mask[k] === GROUND.water) {
-      burned[k] = dem.waterLevel - 0.4;
-    } else if (hasRoad && (sidewalkMask[k] || f < 3)) {
-      burned[k] = re + CURB_HEIGHT;
-    } else if (hasRoad && f < 6) {
-      const t = (f - 3) / 3;
-      burned[k] = (re + CURB_HEIGHT) * (1 - t) + dem.heights[k] * t;
-    }
-  }
+  const { burned, roadCells } = burnHeights(dem.heights, dem.waterLevel, (k) => mask[k] === GROUND.water, sidewalkMask, finalSdf, field);
+  const surface = scanRoadSurface(spec, burned, groundLinks);
+  const crossings = findLevelCrossings(groundLinks);
 
   // Final classes: road wins over everything; buildings over the rest.
   for (let k = 0; k < N; k += 1) {
@@ -261,8 +185,14 @@ export function buildGround(
   report.push(
     `widths measured against sidewalks or walls on ${measured} of ${graph.links.filter((l) => l.drivable && !l.bridge).length} ground links`,
     `${shifts.length} centrelines recentred between their curbs, median shift ${(shifts[shifts.length >> 1] ?? 0).toFixed(1)} m, largest ${(shifts[shifts.length - 1] ?? 0).toFixed(1)} m`,
-    `${sidewalks.length} sidewalk polygons, ${demWater} DEM water cells at ${dem.waterLevel.toFixed(2)} m`,
-    `road cells ${roadCells}, corner fill cells ${filled}, ${curbs.length} curb lines totalling ${(curbLength / 1000).toFixed(1)} km`,
+    `${sidewalks.length} sidewalk polygons, ${demWater} DEM water cells at ${dem.waterLevel.toFixed(2)} m, ${demotedWater} of them inside road corridors or sidewalk strips put back to lot`,
+    `road cells ${roadCells}, corner fill cells ${filled}, ${splitCells} cells kept as walls between roads at different levels, ${curbs.length} curb lines totalling ${(curbLength / 1000).toFixed(1)} km`,
+    `ground under road surfaces: ${surface.low} of ${surface.links} ground links have a drop of more than 0.4 m somewhere across their width` +
+      (surface.worst ? `, worst ${surface.worst.drop.toFixed(2)} m on ${surface.worst.name} at (${surface.worst.x.toFixed(0)}, ${surface.worst.z.toFixed(0)})` : '') +
+      `; ${surface.high} rise more than 0.4 m above the road along its centreline` +
+      (surface.worstHigh ? `, worst ${surface.worstHigh.rise.toFixed(2)} m on ${surface.worstHigh.name} at (${surface.worstHigh.x.toFixed(0)}, ${surface.worstHigh.z.toFixed(0)})` : ''),
+    `${crossings.length} ground links pass more than ${CROSSING_TOL} m over another road without a bridge tag, which dams the lower road` +
+      (crossings.length ? `: ${crossings.slice(0, 8).map((c) => `${c.upper} over ${c.lower} (${c.drop.toFixed(1)} m)`).join('; ')}` : ''),
     `ground classes: ${names.map(([n, id]) => `${n} ${(((counts.get(id) ?? 0) / N) * 100).toFixed(1)}%`).join(', ')}`,
   );
   return { spec, mask, burned, curbs, report };

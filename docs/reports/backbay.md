@@ -21,16 +21,18 @@ Generated 2026-10-27. Box 42.344, 42.357, -71.092, -71.068; local rectangle x -2
 
 - widths measured against sidewalks or walls on 749 of 1091 ground links
 - 331 centrelines recentred between their curbs, median shift 0.8 m, largest 3.0 m
-- 1702 sidewalk polygons, 805275 DEM water cells at 0.20 m
-- road cells 781542, corner fill cells 28944, 351 curb lines totalling 124.5 km
-- ground classes: lot 11.1%, road 18.9%, sidewalk 6.8%, building 26.8%, water 20.6%, grass 11.7%, paved 2.7%, rail 0.6%, parking 0.8%
+- 1702 sidewalk polygons, 7291 DEM water cells at 0.20 m, 1117 of them inside road corridors or sidewalk strips put back to lot
+- road cells 775937, corner fill cells 25820, 5604 cells kept as walls between roads at different levels, 389 curb lines totalling 129.4 km
+- ground under road surfaces: 15 of 1091 ground links have a drop of more than 0.4 m somewhere across their width, worst 0.83 m on (unnamed) at (-764, 937); 18 rise more than 0.4 m above the road along its centreline, worst 5.16 m on (unnamed) at (-1295, 900)
+- 0 ground links pass more than 2.5 m over another road without a bridge tag, which dams the lower road
+- ground classes: lot 11.2%, road 18.8%, sidewalk 6.8%, building 26.8%, water 20.6%, grass 11.7%, paved 2.7%, rail 0.6%, parking 0.8%
 
 ## Buildings
 
 - 5465 source parts: 5352 kept, 27 skipped by type, 2 too small or low, 84 outside the box
 - elevation datum: source ground (feet to metres) minus DEM has median -0.05 m, 10th to 90th percentile spread 1.27 m, over 4982 parts
 - 61 parts without a city height take OpenStreetMap heights; 317 use 12 m; largest footprints without any height: 2853 m2, 1172 m2, 1100 m2, 582 m2, 562 m2
-- styles: brickRed 2009, brickBrown 562, brownstone 1727, limestone 686, granite 115, painted 99, glass 101, concrete 53
+- styles: brickRed 2009, brickBrown 562, brownstone 1727, limestone 684, granite 115, painted 101, glass 101, concrete 53
 
 ## Imagery
 
@@ -50,5 +52,5 @@ Generated 2026-10-27. Box 42.344, 42.357, -71.092, -71.068; local rectangle x -2
 
 ## World file
 
-- world file 7.06 MB raw, 1.75 MB gzipped
-- arrays: heights 2020 kB, mask 4032 kB, nodeXYZ 10 kB, linkNodes 9 kB, linkPointStart 5 kB, linkPoints 72 kB, linkClass 1 kB, linkFlags 1 kB, linkWidth 5 kB, linkLanes 1 kB, linkName 2 kB, linkSpeed 5 kB, curbStart 1 kB, curbPoints 138 kB, partRingStart 21 kB, ringStart 21 kB, ringXZ 486 kB, partBase 21 kB, partRoof 21 kB, partStyle 5 kB, partSeed 10 kB
+- world file 7.09 MB raw, 1.78 MB gzipped
+- arrays: heights 2020 kB, mask 4032 kB, nodeXYZ 10 kB, linkNodes 9 kB, linkPointStart 5 kB, linkPoints 72 kB, linkClass 1 kB, linkFlags 1 kB, linkWidth 5 kB, linkLanes 1 kB, linkName 2 kB, linkSpeed 5 kB, curbStart 2 kB, curbPoints 168 kB, partRingStart 21 kB, ringStart 21 kB, ringXZ 486 kB, partBase 21 kB, partRoof 21 kB, partStyle 5 kB, partSeed 10 kB
