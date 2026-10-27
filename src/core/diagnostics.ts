@@ -11,6 +11,7 @@ export interface Diagnostics {
   render: { calls: number; triangles: number };
   physics: { bodies: number; colliders: number; stepMs: number };
   traffic: { cars: number; parked: number };
+  audio: { ready: boolean; muted: boolean };
   errors: string[];
 }
 
@@ -48,6 +49,7 @@ export function createDiagnostics(backend: string): Diagnostics {
     render: { calls: 0, triangles: 0 },
     physics: { bodies: 0, colliders: 0, stepMs: 0 },
     traffic: { cars: 0, parked: 0 },
+    audio: { ready: false, muted: false },
     errors: [],
   };
   window.__DRIVE_BOSTON__ = d;

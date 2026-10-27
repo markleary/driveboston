@@ -16,6 +16,13 @@ terms. Nothing here is endorsed by any of the organisations named.
 | City of Boston, Analyze Boston: Street Lights, Traffic Signals | Lamp positions; signalised intersections | Open Data Commons Public Domain Dedication and License (PDDL). https://data.boston.gov |
 | City of Boston, Analyze Boston: BPRD Trees (Parks and Recreation Department) | Street and park tree positions, species and trunk size | Open Data Commons Public Domain Dedication and License (PDDL). https://data.boston.gov/dataset/bprd-trees |
 
+## Sounds
+
+The engine, tyre, impact, horn and ambience sounds under `public/audio/` were
+generated for this project with ElevenLabs sound generation from text prompts
+(no recordings of any person) and are included under the project's MIT
+licence.
+
 ## Sources planned for later phases
 
 Boston street segments (SAM), MassDOT roads, Cambridge GIS, Somerville open

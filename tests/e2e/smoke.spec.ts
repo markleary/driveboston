@@ -48,3 +48,23 @@ for (const variant of ['default', 'webgl'] as const) {
     expect(consoleErrors.filter((e) => !e.includes('favicon'))).toEqual([]);
   });
 }
+
+test('a key press starts the sound and the minimap draws', async ({ page }) => {
+  const consoleErrors: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error') consoleErrors.push(m.text());
+  });
+  await page.goto('');
+  await page.waitForFunction(() => window.__DRIVE_BOSTON__?.ready === true, null, { timeout: 360_000 });
+  await page.waitForFunction(() => (window.__DRIVE_BOSTON__?.frame ?? 0) > 2);
+  await page.keyboard.press('KeyW');
+  await page.waitForFunction(() => window.__DRIVE_BOSTON__?.audio.ready === true, null, { timeout: 60_000 });
+  const status = await page.evaluate(() => window.__DRIVE_BOSTON__!.audio);
+  expect(status).toMatchObject({ ready: true, muted: false });
+  const minimap = await page.locator('#minimap').screenshot();
+  const png = PNG.sync.read(minimap);
+  const shades = new Set<number>();
+  for (let i = 0; i < png.data.length; i += 4 * 97) shades.add((png.data[i] >> 5) * 64 + (png.data[i + 1] >> 5) * 8 + (png.data[i + 2] >> 5));
+  expect(shades.size, 'minimap has several colours').toBeGreaterThan(3);
+  expect(consoleErrors.filter((e) => !e.includes('favicon'))).toEqual([]);
+});

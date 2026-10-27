@@ -224,6 +224,21 @@ FXAA after tone mapping instead of by MSAA. Rejected: a tile map (another
 download and licence for no more truth), street-name labels on the minimap
 (unreadable at this size).
 
+## D25. Sound generated once, played from files
+The engine is two ElevenLabs loops (idle and mid revs) crossfaded and pitched
+by a simulated five-speed gearbox that shifts with speed, over a road-noise
+loop that rises with speed, a tyre scrub loop while cornering hard or sliding
+on the handbrake, two impact thuds scaled by the change in velocity, a horn
+and a neighbourhood ambience bed that drops at speed. The eight clips were
+generated with the API key from the local environment and committed as MP3s
+with their prompts, lengths and checksums in `public/audio/provenance.json`,
+so the game needs no key and no service at runtime; the audio model is
+adapted from the owner's other Boston prototype. Web Audio starts on the first
+key or pointer gesture, as browsers require, and the master gain closes while
+the tab is hidden or the game is paused or muted. Rejected: synthesised engine
+audio (oscillators never sound like a car), per-car traffic audio (dozens of
+sources for little gain; the ambience bed stands in).
+
 ## Log
 
 | Date | Change | Why |
@@ -240,3 +255,4 @@ download and licence for no more truth), street-name labels on the minimap
 | 2026-10-27 | Street furniture placed from the city inventories and OpenStreetMap, instanced at runtime | Visible layer: the streets were bare |
 | 2026-10-27 | Traffic on the road graph as velocity-driven dynamic bodies, and parked cars along the curbs, instanced | Visible layer: empty streets read as a model, not a city; kinematic bodies launched the car |
 | 2026-10-27 | Heading-up minimap from the ground mask; ambient occlusion on WebGPU; controls line in the HUD | Visible layer: no sense of place beyond the street name, and flat creases |
+| 2026-10-27 | Engine, skid, impact, horn and ambience sounds generated with ElevenLabs and played through Web Audio | Visible layer: silence |

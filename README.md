@@ -43,7 +43,9 @@ track the current build.
 | Space | Handbrake |
 | R | Reset the car to the nearest road |
 | V | Cycle camera (chase, first person, aerial) |
-| H | Hide or show the HUD |
+| N | Horn |
+| M | Mute |
+| H | Hide or show the HUD and minimap |
 | Mouse drag and wheel | Orbit and zoom the chase camera |
 | ` (backtick) | Developer overlay and tuning panel |
 

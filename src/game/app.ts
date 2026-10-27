@@ -7,6 +7,7 @@ import { createDiagnostics, type Diagnostics } from '../core/diagnostics.ts';
 import { LoadingScreen } from '../ui/loading.ts';
 import { Hud } from '../ui/hud.ts';
 import { Minimap } from '../ui/minimap.ts';
+import { GameAudio } from '../audio/game-audio.ts';
 import { loadWorld, type WorldData } from '../world/data.ts';
 import { loadChunkTextures, type ChunkTextures } from '../world/imagery.ts';
 import { buildTerrainChunk } from '../world/terrain.ts';
@@ -57,6 +58,16 @@ export class App {
   private sky!: SkyRig;
   private streets!: StreetIndex;
   private minimap!: Minimap;
+  private audio!: GameAudio;
+  private throttleNow = 0;
+  private steerNow = 0;
+  private handbrakeNow = false;
+  /** Sideways speed of the chassis, metres per second. */
+  private slip = 0;
+  /** Physics steps left to ignore velocity jumps after a teleport. */
+  private skipImpact = 0;
+  private readonly prevVel = new THREE.Vector3();
+  private readonly right = new THREE.Vector3();
   private devTools?: DevTools;
   private traffic: Traffic | null = null;
   private post: PostStack | null = null;
@@ -83,6 +94,7 @@ export class App {
     this.renderer = renderer;
     this.diagnostics = createDiagnostics(backend);
     this.hud.setBackend(backend === 'webgpu' ? 'WebGPU' : 'WebGL 2');
+    this.audio = new GameAudio(`${import.meta.env.BASE_URL}audio/`);
 
     const base = `${import.meta.env.BASE_URL}data/${BOX}/`;
     this.loading.set('Loading Back Bay', 0.05);
@@ -287,6 +299,7 @@ export class App {
     window.__DRIVE_BOSTON_HOOKS__ = {
       teleport: (x, z, headingDeg = 0) => {
         this.traffic?.clearAround(x, z, 30);
+        this.skipImpact = 10;
         this.vehicle.teleport(x, this.world.heightAt(x, z) + 1.2, z, headingDeg);
       },
       teleportTo: (name) => this.teleportTo(name),
@@ -314,6 +327,7 @@ export class App {
     const spawn = this.world.spawns.find((s) => s.name.toLowerCase() === needle) ?? this.world.spawns.find((s) => s.name.toLowerCase().includes(needle)) ?? this.world.spawns[0];
     if (!spawn) return;
     this.traffic?.clearAround(spawn.x, spawn.z, 30);
+    this.skipImpact = 10;
     this.vehicle.teleport(spawn.x, spawn.y + 1.2, spawn.z, spawn.headingDeg);
   }
 
@@ -322,6 +336,7 @@ export class App {
     const pose = this.streets.nearestRoadPose(p.x, p.z, this.vehicle.headingDeg);
     if (!pose) return;
     this.traffic?.clearAround(pose.x, pose.z, 12);
+    this.skipImpact = 10;
     this.vehicle.teleport(pose.x, pose.y + 1.2, pose.z, pose.headingDeg);
   }
 
@@ -337,6 +352,9 @@ export class App {
     this.prevQuat.copy(this.curQuat);
     const intent = this.scriptedIntent ?? this.input.driveIntent();
     this.vehicle.update(dt, intent);
+    this.throttleNow = intent.throttle;
+    this.steerNow = intent.steer;
+    this.handbrakeNow = intent.handbrake;
     if (this.traffic) {
       this.forward.set(1, 0, 0).applyQuaternion(this.curQuat);
       const flat = Math.hypot(this.forward.x, this.forward.z) || 1;
@@ -349,11 +367,20 @@ export class App {
     this.physics.step(dt);
     this.traffic?.afterStep();
     this.syncCarTransform();
+    const v = this.vehicle.body.linvel();
+    const dv = Math.hypot(v.x - this.prevVel.x, v.y - this.prevVel.y, v.z - this.prevVel.z);
+    this.prevVel.set(v.x, v.y, v.z);
+    if (this.skipImpact > 0) this.skipImpact -= 1;
+    else if (dv > 2.5) this.audio.impact(dv);
+    this.right.set(0, 0, 1).applyQuaternion(this.curQuat);
+    this.slip = Math.abs(v.x * this.right.x + v.z * this.right.z);
   }
 
   private frame(dt: number, alpha: number): void {
     if (this.input.consume('KeyR')) this.resetToRoad();
     if (this.input.consume('KeyV')) this.gameCamera.cycle();
+    if (this.input.consume('KeyM')) this.audio.toggleMute();
+    if (this.input.consume('KeyN')) this.audio.horn();
     if (this.input.consume('KeyH')) {
       this.hud.toggle();
       this.minimap.toggle();
@@ -372,6 +399,7 @@ export class App {
     }
 
     const speed = this.vehicle.speedMps;
+    this.audio.update(speed, this.throttleNow, { steer: this.steerNow, handbrake: this.handbrakeNow, slip: this.slip });
     this.gameCamera.update(dt, this.renderPos, this.renderQuat, speed);
     // The driver's eye sits inside the cabin; its glass and roof would otherwise fill the top of the view.
     for (const part of this.carMesh.cabin) part.visible = this.gameCamera.mode !== 'first';
@@ -403,6 +431,8 @@ export class App {
       d.physics.bodies = this.physics.world.bodies.len();
       d.physics.colliders = this.physics.world.colliders.len();
       d.physics.stepMs = this.physics.stepMs;
+      d.audio.ready = this.audio.ready;
+      d.audio.muted = this.audio.muted;
     }
     if (d.frame % 10 === 0) this.devTools?.update(d.fps, `street ${this.streetLabel.street} ${this.streetLabel.cross ? '& ' + this.streetLabel.cross : ''}\ncamera ${this.gameCamera.mode}  heading ${this.vehicle.headingDeg.toFixed(0)}`);
   }

@@ -1,0 +1,89 @@
+{
+  "provider": "ElevenLabs",
+  "endpoint": "https://api.elevenlabs.io/v1/sound-generation",
+  "format": "mp3_44100_128",
+  "generatedOn": "2026-10-27",
+  "description": "Sound effects generated from text prompts for this game; not recordings of Boston or of any vehicle or person.",
+  "clips": [
+    {
+      "id": "engine-idle",
+      "seconds": 4,
+      "loop": true,
+      "influence": 0.5,
+      "prompt": "seamless loop of a small four-cylinder sedan engine idling, steady low rumble with a gentle valve tick, heard from the driver's seat, no music, no voice",
+      "file": "engine-idle.mp3",
+      "bytes": 65244,
+      "sha256": "375a66ad321aa79566d8bbe35f33dca9196d36946d2b9d5cb2d973ea89cbc347"
+    },
+    {
+      "id": "engine-drive",
+      "seconds": 4,
+      "loop": true,
+      "influence": 0.5,
+      "prompt": "seamless loop of a small sedan engine held at steady mid revs around 2500 rpm, smooth even drone with light exhaust note, heard from the driver's seat, no music, no voice",
+      "file": "engine-drive.mp3",
+      "bytes": 65244,
+      "sha256": "a53a2aa5a033b3d00353ab81fdf63c873d4c8ebc01ad7d13da9ed0650ffa6a78"
+    },
+    {
+      "id": "tire-road",
+      "seconds": 4,
+      "loop": true,
+      "influence": 0.5,
+      "prompt": "seamless loop of car tyres rolling steadily on dry city asphalt at moderate speed, smooth road hiss and low rumble, heard from inside the car, no engine, no music, no voice",
+      "file": "tire-road.mp3",
+      "bytes": 65244,
+      "sha256": "4225f30799d66776bdcd3163511451276879215cedf55b763198e44cac1b2e1d"
+    },
+    {
+      "id": "tire-skid",
+      "seconds": 3,
+      "loop": true,
+      "influence": 0.55,
+      "prompt": "seamless loop of car tyres squealing while sliding sideways on dry asphalt, steady rubber screech, no music, no voice",
+      "file": "tire-skid.mp3",
+      "bytes": 48944,
+      "sha256": "d5ca2275e7518166225bf7fdf21962faba402712b978452c6374175e6935f6f9"
+    },
+    {
+      "id": "city-ambience",
+      "seconds": 16,
+      "loop": true,
+      "influence": 0.4,
+      "prompt": "seamless loop of a quiet city neighbourhood afternoon ambience, distant traffic hum, sparrows chirping in street trees, light breeze in leaves, one far-off car horn, no music, no voice",
+      "file": "city-ambience.mp3",
+      "bytes": 257087,
+      "sha256": "bf17240a41649247350df687d77b49f7a8be3712a18df35704e66772a83da837"
+    },
+    {
+      "id": "impact-light",
+      "seconds": 1,
+      "loop": false,
+      "influence": 0.7,
+      "prompt": "short car bumper scrape and thud against a concrete kerb, dull plastic knock, half second tail, no music, no voice",
+      "file": "impact-light.mp3",
+      "bytes": 17179,
+      "sha256": "5ddd29a3919d2a68af4f7229d6e102951dfb183e9204f0731fa79bc9a8355c7d"
+    },
+    {
+      "id": "impact-heavy",
+      "seconds": 1.6,
+      "loop": false,
+      "influence": 0.7,
+      "prompt": "short heavy car crash impact, crunching sheet metal and breaking glass, low thump, one second tail, no music, no voice",
+      "file": "impact-heavy.mp3",
+      "bytes": 26792,
+      "sha256": "e090b522eeb288ca6092e6abe21e3b349fd6db3b3ea0bc1ecf98ee0a8a44a0a1"
+    },
+    {
+      "id": "horn",
+      "seconds": 0.9,
+      "loop": false,
+      "influence": 0.7,
+      "prompt": "short double tap of a modern sedan car horn, bright and clean, no music, no voice",
+      "file": "horn.mp3",
+      "bytes": 15089,
+      "sha256": "63995115c2b8b3baca60f1279a58db820c6d162b14129dfdde0442a4cfe3f759"
+    }
+  ]
+}
