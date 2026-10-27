@@ -7,7 +7,8 @@ import type { Diagnostics } from '../../src/core/diagnostics.ts';
  * A scripted lap of Back Bay on lawful one-way directions: Commonwealth Avenue
  * eastbound from Massachusetts Avenue, Berkeley Street northbound, Beacon
  * Street westbound, Massachusetts Avenue southbound and back onto
- * Commonwealth Avenue. Coordinates are road-graph junctions in the world frame.
+ * Commonwealth Avenue. Coordinates are road-graph junctions in the world frame;
+ * the bot aims a lane's width right of each so it keeps to the right-hand lane.
  */
 const ROUTE = [
   { name: 'Commonwealth Avenue at Massachusetts Avenue', x: -2144.3, z: 832.0, turn: false },
@@ -21,6 +22,7 @@ const ROUTE = [
 ];
 /** On the Commonwealth Avenue surface lane 20 m west of its mid-block node, so the car starts on the ribbon. */
 const START = { x: -2208.2, z: 839.5, headingDeg: 76 };
+const LANE_RIGHT_M = 1.6;
 
 const SCREENSHOTS = [
   { file: 'comm-ave-mall', spawn: 'Commonwealth Avenue at Dartmouth Street', camera: 'chase' },
@@ -109,7 +111,7 @@ test.describe('driving', () => {
     const loadSeconds = (Date.now() - loadStart) / 1000;
 
     const lap = await page.evaluate(
-      async ({ route, start }) => {
+      async ({ route, start, laneRight }) => {
         const hooks = window.__DRIVE_BOSTON_HOOKS__!;
         const diag = window.__DRIVE_BOSTON__!;
         hooks.teleport(start.x, start.z, start.headingDeg);
@@ -132,8 +134,11 @@ test.describe('driving', () => {
             }
             const car = diag.car;
             const wp = route[index];
-            const dx = wp.x - car.x;
-            const dz = wp.z - car.z;
+            // Aim a lane's width right of the junction node to keep to the right-hand lane.
+            const from = index > 0 ? route[index - 1] : start;
+            const leg = Math.hypot(wp.x - from.x, wp.z - from.z);
+            const dx = wp.x - ((wp.z - from.z) / leg) * laneRight - car.x;
+            const dz = wp.z + ((wp.x - from.x) / leg) * laneRight - car.z;
             const dist = Math.hypot(dx, dz);
             const bearing = ((Math.atan2(dx, -dz) * 180) / Math.PI + 360) % 360;
             const error = ((bearing - car.headingDeg + 540) % 360) - 180;
@@ -172,9 +177,11 @@ test.describe('driving', () => {
         result.heapMb = memory ? memory.usedJSHeapSize / 1048576 : 0;
         return result;
       },
-      { route: ROUTE, start: START },
+      { route: ROUTE, start: START, laneRight: LANE_RIGHT_M },
     );
     await testInfo.attach('lap', { body: JSON.stringify(lap, null, 2), contentType: 'application/json' });
+    const traffic = await page.evaluate(() => window.__DRIVE_BOSTON__!.traffic);
+    console.log(`traffic: ${traffic.cars} cars driving, ${traffic.parked} parked`);
     console.log(`lap: ${lap.reached.length}/${ROUTE.length} waypoints in ${lap.seconds.toFixed(0)} s, top ${lap.topMph.toFixed(0)} mph, resets ${lap.resets}`);
     const medians = lap.fpsSamples.map((s) => s.median).sort((a, b) => a - b);
     const p95s = lap.fpsSamples.map((s) => s.p95).sort((a, b) => a - b);
@@ -184,6 +191,7 @@ test.describe('driving', () => {
 
     expect(lap.reached, JSON.stringify(lap.reached)).toEqual(ROUTE.map((w) => w.name));
     expect(lap.resets).toBeLessThanOrEqual(2);
+    expect(lap.topMph, 'a collision launched the car').toBeLessThan(110);
     expect(pageErrors).toEqual([]);
     expect(consoleErrors.filter((e) => !e.includes('favicon'))).toEqual([]);
     const sample = await canvasIsNotBlank(page);

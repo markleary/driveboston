@@ -1,7 +1,7 @@
 import type { Collider, DynamicRayCastVehicleController, RigidBody } from '@dimforge/rapier3d-compat';
 import * as THREE from 'three/webgpu';
 import type { DriveIntent } from '../core/input.ts';
-import type { PhysicsWorld, Rapier } from './physics.ts';
+import { COLLISION, type PhysicsWorld, type Rapier } from './physics.ts';
 
 /**
  * Everything the tuning panel can change at runtime. Engine force is in newtons;
@@ -100,6 +100,7 @@ export class Vehicle {
     const m = tuning.mass;
     const inertia = { x: (m / 3) * (hy * hy + hz * hz) * 1.3, y: (m / 3) * (hx * hx + hz * hz) * 1.3, z: (m / 3) * (hx * hx + hy * hy) * 1.3 };
     const colliderDesc = R.ColliderDesc.cuboid(hx, hy, hz)
+      .setCollisionGroups(COLLISION.player)
       .setMassProperties(m, { x: 0, y: -0.32, z: 0 }, inertia, { w: 1, x: 0, y: 0, z: 0 })
       .setFriction(0.5)
       .setRestitution(0.05);

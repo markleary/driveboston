@@ -23,9 +23,11 @@ import { createCarMesh, type CarMesh } from './car-mesh.ts';
 import { GameCamera, type CameraMode } from './camera.ts';
 import { StreetIndex } from './streets.ts';
 import { DevTools } from './devtools.ts';
+import { Traffic, placeParkedCars, type PlayerState } from './traffic.ts';
 
 const BOX = 'backbay';
 const DEFAULT_SPAWN = 'Commonwealth Avenue at Dartmouth Street';
+const TRAFFIC_CARS = 140;
 
 /** Yields to the event loop so the loading bar can paint (a timer rather than rAF so hidden tabs keep loading). */
 const nextFrame = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 16));
@@ -52,6 +54,8 @@ export class App {
   private sky!: SkyRig;
   private streets!: StreetIndex;
   private devTools?: DevTools;
+  private traffic: Traffic | null = null;
+  private readonly playerState: PlayerState = { x: 0, z: 0, dx: 1, dz: 0 };
   private scriptedIntent: DriveIntent | null = null;
   private readonly prevPos = new THREE.Vector3();
   private readonly prevQuat = new THREE.Quaternion();
@@ -123,6 +127,19 @@ export class App {
     this.syncCarTransform();
     this.prevPos.copy(this.curPos);
     this.prevQuat.copy(this.curQuat);
+
+    this.loading.set('Filling the streets', 0.98);
+    await nextFrame();
+    const parkedOccupancy = Math.max(0, Math.min(1, Number(params.get('parked') ?? 0.5)));
+    const parked = placeParkedCars(world, this.physics, R, 11, parkedOccupancy);
+    for (const mesh of parked.meshes) this.scene.add(mesh);
+    const trafficCount = Math.max(0, Math.min(400, Number(params.get('traffic') ?? TRAFFIC_CARS) || 0));
+    if (trafficCount > 0) {
+      this.traffic = new Traffic(world, this.physics, R, trafficCount, { x: this.curPos.x, z: this.curPos.z });
+      this.scene.add(this.traffic.mesh);
+      this.diagnostics.traffic.cars = this.traffic.count;
+    }
+    this.diagnostics.traffic.parked = parked.count;
 
     this.loading.set('Ready', 1);
     this.loading.hide();
@@ -259,7 +276,10 @@ export class App {
 
   private installHooks(): void {
     window.__DRIVE_BOSTON_HOOKS__ = {
-      teleport: (x, z, headingDeg = 0) => this.vehicle.teleport(x, this.world.heightAt(x, z) + 1.2, z, headingDeg),
+      teleport: (x, z, headingDeg = 0) => {
+        this.traffic?.clearAround(x, z, 30);
+        this.vehicle.teleport(x, this.world.heightAt(x, z) + 1.2, z, headingDeg);
+      },
       teleportTo: (name) => this.teleportTo(name),
       setCamera: (mode) => this.gameCamera.setMode(mode as CameraMode),
       listSpawns: () => this.world.spawns.map((s) => s.name),
@@ -267,6 +287,8 @@ export class App {
         this.scriptedIntent = intent ? { throttle: intent.throttle, steer: intent.steer, handbrake: intent.handbrake ?? false, boost: intent.boost ?? false } : null;
       },
       resetToRoad: () => this.resetToRoad(),
+      trafficPoses: () => this.traffic?.poses() ?? [],
+      groundClassAt: (x, z) => this.world.classAt(x, z),
       pick: (nx, ny) => {
         const ray = new THREE.Raycaster();
         ray.setFromCamera(new THREE.Vector2(nx, ny), this.gameCamera.camera);
@@ -282,13 +304,16 @@ export class App {
     const needle = name.toLowerCase();
     const spawn = this.world.spawns.find((s) => s.name.toLowerCase() === needle) ?? this.world.spawns.find((s) => s.name.toLowerCase().includes(needle)) ?? this.world.spawns[0];
     if (!spawn) return;
+    this.traffic?.clearAround(spawn.x, spawn.z, 30);
     this.vehicle.teleport(spawn.x, spawn.y + 1.2, spawn.z, spawn.headingDeg);
   }
 
   private resetToRoad(): void {
     const p = this.vehicle.position;
     const pose = this.streets.nearestRoadPose(p.x, p.z, this.vehicle.headingDeg);
-    if (pose) this.vehicle.teleport(pose.x, pose.y + 1.2, pose.z, pose.headingDeg);
+    if (!pose) return;
+    this.traffic?.clearAround(pose.x, pose.z, 12);
+    this.vehicle.teleport(pose.x, pose.y + 1.2, pose.z, pose.headingDeg);
   }
 
   private syncCarTransform(): void {
@@ -303,7 +328,17 @@ export class App {
     this.prevQuat.copy(this.curQuat);
     const intent = this.scriptedIntent ?? this.input.driveIntent();
     this.vehicle.update(dt, intent);
+    if (this.traffic) {
+      this.forward.set(1, 0, 0).applyQuaternion(this.curQuat);
+      const flat = Math.hypot(this.forward.x, this.forward.z) || 1;
+      this.playerState.x = this.curPos.x;
+      this.playerState.z = this.curPos.z;
+      this.playerState.dx = this.forward.x / flat;
+      this.playerState.dz = this.forward.z / flat;
+      this.traffic.fixedUpdate(dt, this.playerState);
+    }
     this.physics.step(dt);
+    this.traffic?.afterStep();
     this.syncCarTransform();
   }
 
@@ -328,6 +363,7 @@ export class App {
     this.gameCamera.update(dt, this.renderPos, this.renderQuat, speed);
     // The driver's eye sits inside the cabin; its glass and roof would otherwise fill the top of the view.
     for (const part of this.carMesh.cabin) part.visible = this.gameCamera.mode !== 'first';
+    this.traffic?.frame(alpha);
     this.sky.follow(this.renderPos);
     resizeRenderer(this.renderer, this.camera);
     this.renderer.render(this.scene, this.camera);

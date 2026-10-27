@@ -169,10 +169,43 @@ hydrants. The pipeline sets each item on the burned ground, moves anything
 that lands on the roadway, in a building or in the water onto the nearest open
 cell within 3 m or drops it, and turns each signalised intersection point into
 one pole with a mast arm per approach at the right-hand curb beside the stop
-line. Lamps along arterials are tall cobra heads leaning over the road; the
-rest are pedestal lamps. The runtime draws each kind as one instanced mesh of
+line. Lamps along the highway ramps and the widest roads are tall cobra heads
+leaning over the road; the rest are pedestal lamps, which is what the avenues
+have. The runtime draws each kind as one instanced mesh of
 merged primitives with vertex colours and gives trunks and posts cylinder
 colliders, so the car stops at a tree instead of passing through it.
+
+## D23. Traffic and parked cars on the road graph
+Other cars are the cheapest thing that makes a street feel lived in. Traffic
+cars follow the road links in a lane offset from the centreline (right of
+travel; one-way streets spread their lanes across the width, and the parking
+lane stays free), keep a gap to the car ahead on the same link, slow for
+turns and for the player when any part of their car is in the lane ahead, and
+at each junction pick the next link with a weight that favours carrying
+straight on and staying on the same street, never entering a one-way link
+against its flow or a link that leaves the box. A car with nowhere to go, or
+one stopped for twenty seconds out of the player's sight, reappears on a
+random street, weighted by length, away from the player. Each car is a
+dynamic body in a collision group that touches only the player, so cars pass
+through each other and the kerbside cars at no solver cost; every step its
+velocity is set to carry it along its path at the car's speed and sideways at
+a capped rate to merge into its lane. The player can bump them: a car pushed
+from behind rolls with the push and its path catches up to the body, while a
+car pushed backwards or held stops where it is and starts again from rest,
+never driving backwards or sideways into the player, so a car the player
+leans on is a stopped car, not a bulldozer. Parked cars line both curbs of
+every drivable street whose class allows parking and that is at least 9 m
+wide, one slot per 6.5 m at half occupancy, facing the flow on their side, as
+fixed box colliders and low-detail instanced meshes grouped per 512 m cell so
+the frustum culls distant blocks; they cast no shadows (a dark patch under
+each stands in) because four thousand shadow casters doubled the triangle
+count. Rejected: kinematic bodies for traffic (the first build; a kinematic
+car meeting the player's wheels threw the player to 190 mph), forces or
+joints to drive the bodies (the set velocity is stable in numbers and the
+path keeps every car exactly in its lane), a lane graph from OpenStreetMap
+lanes tags (too thin in Back Bay), and streaming parked cars around the
+player (deferred until the fixed colliders cost more than the 3 ms physics
+step they do now).
 
 ## Log
 
@@ -188,3 +221,4 @@ colliders, so the car stops at a tree instead of passing through it.
 | 2026-10-27 | Terrain burn resolves roads at different levels by corridor ownership, with walls between them; road-surface scan in the pipeline report | The owner fell into a 5 m pit on Huntington Avenue where the Turnpike on-ramp's trench had been burned into the street |
 | 2026-10-27 | Real building meshes from the city's 3D model replace the extrusions they cover; models standing on the roadway are dropped | The owner compared the demo with a second prototype whose landmarks read as themselves; extruded footprints could not |
 | 2026-10-27 | Street furniture placed from the city inventories and OpenStreetMap, instanced at runtime | Visible layer: the streets were bare |
+| 2026-10-27 | Traffic on the road graph as velocity-driven dynamic bodies in their own collision group, and parked cars along the curbs, instanced | Visible layer: empty streets read as a model, not a city; kinematic bodies launched the car |

@@ -3,6 +3,13 @@ import type { LocalRect } from '../shared/frame.ts';
 
 export type Rapier = typeof RAPIER;
 
+/**
+ * Collision groups, membership << 16 | filter. Fixed colliders are the world;
+ * the player collides with everything; traffic cars collide only with the
+ * player, so they pass through each other and the kerbside cars.
+ */
+export const COLLISION = { world: 0x0001_ffff, player: 0x0004_ffff, traffic: 0x0002_0004 } as const;
+
 let initPromise: Promise<Rapier> | undefined;
 
 /** Loads the Rapier WebAssembly module once. */
@@ -61,15 +68,15 @@ export function createPhysicsWorld(R: Rapier): PhysicsWorld {
       const desc = R.ColliderDesc.heightfield(cells, cells, samples, { x: sizeM, y: 1, z: sizeM }, hfFlags)
         .setTranslation(minX + sizeM / 2, 0, minZ + sizeM / 2)
         .setFriction(1.0);
-      return world.createCollider(desc, fixed);
+      return world.createCollider(desc.setCollisionGroups(COLLISION.world), fixed);
     },
     addTrimesh(vertices, indices) {
       const desc = R.ColliderDesc.trimesh(vertices, indices, R.TriMeshFlags.FIX_INTERNAL_EDGES).setFriction(0.6);
-      return world.createCollider(desc, fixed);
+      return world.createCollider(desc.setCollisionGroups(COLLISION.world), fixed);
     },
     addCylinder(x, y, z, radius, halfHeight) {
       const desc = R.ColliderDesc.cylinder(halfHeight, radius).setTranslation(x, y + halfHeight, z).setFriction(0.6);
-      return world.createCollider(desc, fixed);
+      return world.createCollider(desc.setCollisionGroups(COLLISION.world), fixed);
     },
     addBoundary(rect, height) {
       const w = rect.maxX - rect.minX;
@@ -85,7 +92,7 @@ export function createPhysicsWorld(R: Rapier): PhysicsWorld {
       ];
       for (const wall of walls) {
         world.createCollider(
-          R.ColliderDesc.cuboid(wall.hx, height, wall.hz).setTranslation(wall.x, 0, wall.z),
+          R.ColliderDesc.cuboid(wall.hx, height, wall.hz).setTranslation(wall.x, 0, wall.z).setCollisionGroups(COLLISION.world),
           fixed,
         );
       }
