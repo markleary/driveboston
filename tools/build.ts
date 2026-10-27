@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
 import { CHUNK_M, IMAGERY_ZOOM, fetchBox } from './fetch.ts';
@@ -7,6 +7,8 @@ import { buildRoadGraph } from './roads.ts';
 import { buildGround, geoJsonToLocalRings, readGeoJson } from './groundmask.ts';
 import { buildBuildings, loadOsmBuildingHeights } from './buildings.ts';
 import { buildModels } from './models.ts';
+import { buildFurniture } from './furniture.ts';
+import type { OsmData } from './lib/overpass.ts';
 import { buildImagery } from './imagery.ts';
 import { packWorld, resolveSpawns } from './pack.ts';
 import { rawPath } from './lib/download.ts';
@@ -64,6 +66,22 @@ export async function buildBox(box: LonLatBox): Promise<void> {
   sections.push({ title: 'Building models', lines: models.report });
   lap('models');
 
+  const furniture = buildFurniture(
+    {
+      trees: readGeoJson(fetched.treesPath),
+      streetlights: readGeoJson(fetched.streetlightsPath),
+      signals: readGeoJson(fetched.signalsPath),
+      osm: JSON.parse(readFileSync(rawPath(fetched.osmFurnitureKey), 'utf8')) as OsmData,
+    },
+    rect,
+    ground.spec,
+    ground.burned,
+    ground.mask,
+    graph,
+  );
+  sections.push({ title: 'Street furniture', lines: furniture.report });
+  lap('furniture');
+
   const outDir = path.join('public/data', box.name);
   mkdirSync(outDir, { recursive: true });
   const imagery = await buildImagery(box.name, rect, CHUNK_M, fetched.tileRange, path.join(outDir, 'img'));
@@ -72,7 +90,7 @@ export async function buildBox(box: LonLatBox): Promise<void> {
 
   const spawnReport: string[] = [];
   const spawns = resolveSpawns(graph, spawnReport);
-  const packed = packWorld(box, rect, CHUNK_M, dem, graph, ground, buildings, models, imagery, spawns, IMAGERY_ZOOM);
+  const packed = packWorld(box, rect, CHUNK_M, dem, graph, ground, buildings, models, furniture, imagery, spawns, IMAGERY_ZOOM);
   writeFileSync(path.join(outDir, 'world.bin.gz'), packed.gz);
   sections.push({ title: 'Spawns', lines: spawnReport });
   sections.push({ title: 'World file', lines: packed.report });

@@ -46,6 +46,15 @@ Generated 2026-10-27. Box 42.344, 42.357, -71.092, -71.068; local rectangle x -2
 - styles: plain 1479, brickRed 426, brownstone 260, limestone 149, brickBrown 130, painted 65, granite 37, concrete 30, glass 19
 - styled by name: Prudential Redevelopment (Parcel 4 and 6) (glass); John Hancock Tower: Restaurant/Retail/Parking (glass); 1 Dalton Street (glass); 1 Dalton Street (glass); Christian Science Church (limestone); Old South Church (brownstone); Trinity Church (brownstone); Boston Public Library (granite); 50 DALTON ST (glass); 67 CHURCH ST (brownstone); Arlington Street Church (brownstone); Liberty Mutual (glass); 52 CHURCH ST (brownstone); 16 CHURCH ST (brownstone); 45 CHURCH ST (brownstone); 34 CHURCH ST (brownstone)
 
+## Street furniture
+
+- 13566 items: tree 7189, lamp 3973, cobra 1330, signal 272, stop 79, bench 531, hydrant 192
+- trees: 5373 from the city inventory (1741 in parks, 148 empty or planned sites skipped), 1816 more from OpenStreetMap
+- lamps: 5143 from the city street light inventory, 160 more from OpenStreetMap; cobra heads over motorway, motorway_link, trunk, trunk_link and roads at least 13.5 m wide
+- signals: 107 city intersections (4 without a junction within 30 m), 43 more from OpenStreetMap; 116 junctions, 272 poles
+- 79 stop signs, 531 benches, 192 hydrants from OpenStreetMap
+- 1842 items moved off the roadway, buildings or water (up to 3 m), 433 dropped
+
 ## Imagery
 
 - 63 chunk textures of 512 px (0.50 m per pixel) from 357 tiles at zoom 18, 0 missing, 2.9 MB WebP
@@ -64,5 +73,5 @@ Generated 2026-10-27. Box 42.344, 42.357, -71.092, -71.068; local rectangle x -2
 
 ## World file
 
-- world file 11.03 MB raw, 3.84 MB gzipped
-- arrays: heights 2020 kB, mask 4032 kB, nodeXYZ 10 kB, linkNodes 9 kB, linkPointStart 5 kB, linkPoints 72 kB, linkClass 1 kB, linkFlags 1 kB, linkWidth 5 kB, linkLanes 1 kB, linkName 2 kB, linkSpeed 5 kB, curbStart 2 kB, curbPoints 168 kB, partRingStart 21 kB, ringStart 21 kB, ringXZ 486 kB, partBase 21 kB, partRoof 21 kB, partStyle 5 kB, partSeed 10 kB, partFlags 5 kB, modelVertexStart 10 kB, modelIndexStart 10 kB, modelXYZ 1434 kB, modelIndex 2322 kB, modelOrigin 30 kB, modelStyle 3 kB, modelSeed 5 kB, modelName 5 kB
+- world file 11.34 MB raw, 4.05 MB gzipped
+- arrays: heights 2020 kB, mask 4032 kB, nodeXYZ 10 kB, linkNodes 9 kB, linkPointStart 5 kB, linkPoints 72 kB, linkClass 1 kB, linkFlags 1 kB, linkWidth 5 kB, linkLanes 1 kB, linkName 2 kB, linkSpeed 5 kB, curbStart 2 kB, curbPoints 168 kB, partRingStart 21 kB, ringStart 21 kB, ringXZ 486 kB, partBase 21 kB, partRoof 21 kB, partStyle 5 kB, partSeed 10 kB, partFlags 5 kB, modelVertexStart 10 kB, modelIndexStart 10 kB, modelXYZ 1434 kB, modelIndex 2322 kB, modelOrigin 30 kB, modelStyle 3 kB, modelSeed 5 kB, modelName 5 kB, furnKind 13 kB, furnXYZ 159 kB, furnYaw 53 kB, furnSize 53 kB, furnSeed 26 kB

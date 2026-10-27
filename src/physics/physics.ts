@@ -41,6 +41,8 @@ export interface PhysicsWorld {
   addHeightfield(samples: Float32Array, cells: number, sizeM: number, minX: number, minZ: number): RAPIER.Collider;
   /** Adds one fixed triangle-mesh collider in world coordinates. */
   addTrimesh(vertices: Float32Array, indices: Uint32Array): RAPIER.Collider;
+  /** Adds one fixed vertical cylinder standing on the ground at (x, y, z). */
+  addCylinder(x: number, y: number, z: number, radius: number, halfHeight: number): RAPIER.Collider;
   /** Invisible walls around the playable rectangle. */
   addBoundary(rect: LocalRect, height: number): void;
   step(dt: number): void;
@@ -63,6 +65,10 @@ export function createPhysicsWorld(R: Rapier): PhysicsWorld {
     },
     addTrimesh(vertices, indices) {
       const desc = R.ColliderDesc.trimesh(vertices, indices, R.TriMeshFlags.FIX_INTERNAL_EDGES).setFriction(0.6);
+      return world.createCollider(desc, fixed);
+    },
+    addCylinder(x, y, z, radius, halfHeight) {
+      const desc = R.ColliderDesc.cylinder(halfHeight, radius).setTranslation(x, y + halfHeight, z).setFriction(0.6);
       return world.createCollider(desc, fixed);
     },
     addBoundary(rect, height) {

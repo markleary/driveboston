@@ -10,6 +10,7 @@ import { loadChunkTextures, type ChunkTextures } from '../world/imagery.ts';
 import { buildTerrainChunk } from '../world/terrain.ts';
 import { buildBuildingGeometry, buildingGeometryToThree, createFacadeMaterial } from '../world/buildings.ts';
 import { buildModelGeometry } from '../world/models.ts';
+import { buildFurniture } from '../world/furniture.ts';
 import { buildCurbGeometry, createCurbMaterial, geometryFromStatic, type StaticGeometry } from '../world/curbs.ts';
 import { buildBridgeGeometry, createBridgeMaterial } from '../world/bridges.ts';
 import { buildRoadGeometry } from '../world/road-geometry.ts';
@@ -96,6 +97,7 @@ export class App {
     await this.buildTerrain(textures);
     await this.buildRoads();
     await this.buildStatics(textures);
+    this.placeFurniture();
     this.physics.addBoundary(world.rect, 30);
 
     this.loading.set('Starting the car', 0.97);
@@ -160,6 +162,13 @@ export class App {
       mesh.name = `roads ${key % world.chunksX},${Math.floor(key / world.chunksX)}`;
       this.scene.add(mesh);
     }
+  }
+
+  /** Trees, lamps, signals, signs, benches and hydrants: one instanced mesh per kind, cylinder colliders for trunks and posts. */
+  private placeFurniture(): void {
+    const furniture = buildFurniture(this.world);
+    for (const object of furniture.objects) this.scene.add(object);
+    for (const c of furniture.colliders) this.physics.addCylinder(c.x, c.y, c.z, c.radius, c.halfHeight);
   }
 
   private async buildStatics(textures: ChunkTextures[]): Promise<void> {

@@ -8,16 +8,18 @@ terms. Nothing here is endorsed by any of the organisations named.
 
 | Source | Used for | Licence and attribution |
 |---|---|---|
-| OpenStreetMap | Street network (topology, names, one-way, classes, bridges, tunnels), water and park outlines | © OpenStreetMap contributors, Open Database License (ODbL) 1.0, https://www.openstreetmap.org/copyright. The derived road graph in this repository is a derivative database under the ODbL. |
+| OpenStreetMap | Street network (topology, names, one-way, classes, bridges, tunnels), water and park outlines; trees, lamps, stop signs, benches and hydrants | © OpenStreetMap contributors, Open Database License (ODbL) 1.0, https://www.openstreetmap.org/copyright. The derived road graph in this repository is a derivative database under the ODbL. |
 | MassGIS 2025 Aerial Imagery (Bureau of Geographic Information, Commonwealth of Massachusetts, Executive Office of Technology and Security Services) | Ground and roof textures | Public records with no restrictions on use; MassGIS asks for acknowledgement. https://www.mass.gov/info-details/massgis-data-2025-aerial-imagery |
 | USGS 3D Elevation Program, 1 m DEM (MA_CentralEastern_2021_B21) | Terrain | US Government work, public domain. https://www.usgs.gov/3d-elevation-program |
 | City of Boston, Analyze Boston: Buildings with Roof Breaks, Sidewalk Inventory | Building footprints with ground and roof elevations; sidewalk polygons and curb lines | Open Data Commons Public Domain Dedication and License (PDDL). https://data.boston.gov |
 | Boston Planning Department, citywide 3D building models (OBJ release of June 2026) | Building meshes drawn in place of the footprint extrusions they cover | Open Data Commons Public Domain Dedication and License (PDDL). https://maps.bostonplans.org/3d/ |
+| City of Boston, Analyze Boston: Street Lights, Traffic Signals | Lamp positions; signalised intersections | Open Data Commons Public Domain Dedication and License (PDDL). https://data.boston.gov |
+| City of Boston, Analyze Boston: BPRD Trees (Parks and Recreation Department) | Street and park tree positions, species and trunk size | Open Data Commons Public Domain Dedication and License (PDDL). https://data.boston.gov/dataset/bprd-trees |
 
 ## Sources planned for later phases
 
 Boston street segments (SAM), MassDOT roads, Cambridge GIS, Somerville open
-data, Boston tree, hydrant, meter and street light inventories, MassGIS hydrography, open space, land cover and MBTA
+data, Boston hydrant and parking meter inventories, MassGIS hydrography, open space, land cover and MBTA
 rapid transit lines, and MBTA GTFS. Each will be added to the table above with
 its licence before any derived file is committed. GTFS-derived files will be
 kept in their own folder under the MassDOT Developers License Agreement and the

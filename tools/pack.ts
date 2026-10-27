@@ -1,3 +1,4 @@
+import type { FurnitureResult } from './furniture.ts';
 import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { lonLatToLocal } from './lib/frame.ts';
@@ -147,6 +148,7 @@ export function packWorld(
   ground: GroundResult,
   buildings: BuildingsResult,
   models: ModelsResult,
+  furniture: FurnitureResult,
   imagery: ImageryResult,
   spawns: Spawn[],
   imageryZoom: number,
@@ -302,6 +304,21 @@ export function packWorld(
     modelName[i] = nameId(m.name);
   });
 
+  const furnKind = new Uint8Array(furniture.items.length);
+  const furnXYZ = new Float32Array(furniture.items.length * 3);
+  const furnYaw = new Float32Array(furniture.items.length);
+  const furnSize = new Float32Array(furniture.items.length);
+  const furnSeed = new Uint16Array(furniture.items.length);
+  furniture.items.forEach((f, i) => {
+    furnKind[i] = f.kind;
+    furnXYZ[i * 3] = f.x;
+    furnXYZ[i * 3 + 1] = f.y;
+    furnXYZ[i * 3 + 2] = f.z;
+    furnYaw[i] = f.yaw;
+    furnSize[i] = f.size;
+    furnSeed[i] = f.seed;
+  });
+
   const arrays: Record<string, TypedArray> = {
     heights,
     mask: ground.mask,
@@ -333,11 +350,16 @@ export function packWorld(
     modelStyle,
     modelSeed,
     modelName,
+    furnKind,
+    furnXYZ,
+    furnYaw,
+    furnSize,
+    furnSeed,
   };
   const raw = writeContainer(
     {
       format: 'driveboston-world',
-      version: 2,
+      version: 3,
       created: new Date().toISOString().slice(0, 10),
       box: { name: box.name, south: box.south, north: box.north, west: box.west, east: box.east },
       frame: FRAME,
@@ -352,7 +374,7 @@ export function packWorld(
       spawns,
       imagery: { dir: 'img', pixelsPerChunk: imagery.pixelsPerChunk, zoom: imageryZoom, format: 'webp' },
       models: { positionUnitM: POSITION_UNIT_M, source: MODEL_SOURCE.source, release: MODEL_SOURCE.release, shift: models.shift },
-      counts: { nodes: graph.nodes.length, links: links.length, curbs: ground.curbs.length, parts: parts.length, models: modelList.length },
+      counts: { nodes: graph.nodes.length, links: links.length, curbs: ground.curbs.length, parts: parts.length, models: modelList.length, furniture: furniture.items.length },
     },
     arrays,
   );

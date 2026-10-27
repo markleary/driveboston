@@ -29,6 +29,21 @@ export const SOURCES = {
     licence: 'PDDL',
     layer: 'https://gisportal.boston.gov/arcgis/rest/services/Infrastructure/OpenData/MapServer/0',
   },
+  trees: {
+    source: 'City of Boston, BPRD Trees (Parks and Recreation Department)',
+    licence: 'PDDL',
+    layer: 'https://services.arcgis.com/sFnw0xNflSi8J0uh/arcgis/rest/services/BPRD_Trees/FeatureServer/0',
+  },
+  streetlights: {
+    source: 'City of Boston, Street Lights (Public Works)',
+    licence: 'PDDL',
+    layer: 'https://gisportal.boston.gov/arcgis/rest/services/Infrastructure/OpenData/MapServer/11',
+  },
+  signals: {
+    source: 'City of Boston, Traffic Signals (Transportation Department)',
+    licence: 'PDDL',
+    layer: 'https://gisportal.boston.gov/arcgis/rest/services/Infrastructure/OpenData/MapServer/12',
+  },
   models: {
     source: MODEL_SOURCE.source,
     licence: MODEL_SOURCE.licence,
@@ -47,6 +62,10 @@ export interface FetchResult {
   sidewalksPath: string;
   osmKey: string;
   osmBuildingsKey: string;
+  treesPath: string;
+  streetlightsPath: string;
+  signalsPath: string;
+  osmFurnitureKey: string;
   tileKeys: { x: number; y: number; key: string }[];
   tileRange: ReturnType<typeof tileRangeForBox>;
   /** Raw keys of the city's 3D building model tiles covering the rectangle. */
@@ -154,6 +173,38 @@ out skel qt;`;
   const osmBuildings = await overpass(osmBuildingsKey, buildingQuery, force);
   console.log(`  ${osmBuildings.elements.length} OSM building elements`);
 
+  console.log('fetching street furniture');
+  const pointLayer = async (name: 'trees' | 'streetlights' | 'signals'): Promise<string> => {
+    const fc = await arcgisQueryAll({
+      layerUrl: SOURCES[name].layer,
+      keyPrefix: `${box.name}/${name}`,
+      source: SOURCES[name].source,
+      licence: SOURCES[name].licence,
+      bbox: ll,
+      force,
+    });
+    const file = path.join(workDir, `${name}.geojson`);
+    writeFileSync(file, JSON.stringify(fc));
+    console.log(`  ${fc.features.length} ${name}`);
+    return file;
+  };
+  const treesPath = await pointLayer('trees');
+  const streetlightsPath = await pointLayer('streetlights');
+  const signalsPath = await pointLayer('signals');
+  const furnitureQuery = `[out:json][timeout:180];
+(
+  node["natural"="tree"](${bboxStr});
+  node["highway"="street_lamp"](${bboxStr});
+  node["highway"="traffic_signals"](${bboxStr});
+  node["highway"="stop"](${bboxStr});
+  node["amenity"="bench"](${bboxStr});
+  node["emergency"="fire_hydrant"](${bboxStr});
+);
+out body;`;
+  const osmFurnitureKey = `${box.name}/osm-furniture.json`;
+  const osmFurniture = await overpass(osmFurnitureKey, furnitureQuery, force);
+  console.log(`  ${osmFurniture.elements.length} OSM furniture nodes`);
+
   console.log('fetching 3D building model tiles');
   const modelTileKeys: string[] = [];
   for (const tile of tilesForRect(rect)) {
@@ -186,5 +237,5 @@ out skel qt;`;
   });
   console.log(`  ${tiles.length} tiles (${tileRange.maxX - tileRange.minX + 1} x ${tileRange.maxY - tileRange.minY + 1})`);
 
-  return { rect, demKey, buildingsPath, sidewalksPath, osmKey, osmBuildingsKey, tileKeys: tiles, tileRange, modelTileKeys };
+  return { rect, demKey, buildingsPath, sidewalksPath, osmKey, osmBuildingsKey, treesPath, streetlightsPath, signalsPath, osmFurnitureKey, tileKeys: tiles, tileRange, modelTileKeys };
 }

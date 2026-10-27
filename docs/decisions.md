@@ -161,6 +161,19 @@ on the flattened roadways, so a model standing mostly on road cells is dropped
 and counted in the report. Facade styles come from the covered footprint, or
 from the catalogue name for a few landmarks.
 
+## D22. Street furniture from the inventories
+Trees, lamps and traffic signals stand where the city's inventories put them
+(BPRD Trees with species and trunk size, Street Lights, Traffic Signals), with
+OpenStreetMap nodes filling gaps and supplying stop signs, benches and
+hydrants. The pipeline sets each item on the burned ground, moves anything
+that lands on the roadway, in a building or in the water onto the nearest open
+cell within 3 m or drops it, and turns each signalised intersection point into
+one pole with a mast arm per approach at the right-hand curb beside the stop
+line. Lamps along arterials are tall cobra heads leaning over the road; the
+rest are pedestal lamps. The runtime draws each kind as one instanced mesh of
+merged primitives with vertex colours and gives trunks and posts cylinder
+colliders, so the car stops at a tree instead of passing through it.
+
 ## Log
 
 | Date | Change | Why |
@@ -174,3 +187,4 @@ from the catalogue name for a few landmarks.
 | 2026-10-26 | Roads became ribbons with analytic paint; widths from lanes and measured curbs with recentring; approach decks at the Mass Ave cut; imagery kept only for grass, water, roofs and a tint | Owner's review of the demo: the roads read as a satellite photo, with terrain where the surface should be flat |
 | 2026-10-27 | Terrain burn resolves roads at different levels by corridor ownership, with walls between them; road-surface scan in the pipeline report | The owner fell into a 5 m pit on Huntington Avenue where the Turnpike on-ramp's trench had been burned into the street |
 | 2026-10-27 | Real building meshes from the city's 3D model replace the extrusions they cover; models standing on the roadway are dropped | The owner compared the demo with a second prototype whose landmarks read as themselves; extruded footprints could not |
+| 2026-10-27 | Street furniture placed from the city inventories and OpenStreetMap, instanced at runtime | Visible layer: the streets were bare |

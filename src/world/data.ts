@@ -65,6 +65,18 @@ export interface WorldData {
     /** Metres per position unit. */
     unit: number;
   };
+  /** Street furniture: trees, lamps, signals, signs, benches and hydrants (see docs/formats.md). */
+  furniture: {
+    count: number;
+    kind: Uint8Array;
+    /** x y z per item; y is the ground height. */
+    xyz: Float32Array;
+    /** Rotation about y; the object's local +x faces this way. */
+    yaw: Float32Array;
+    /** Tree height in metres, 1 otherwise. */
+    size: Float32Array;
+    seed: Uint16Array;
+  };
   /** Shared string table: street names, then model names. */
   names: string[];
   spawns: SpawnPoint[];
@@ -117,7 +129,7 @@ export async function loadWorld(url: string, onProgress?: (fraction: number) => 
 
 export function parseWorld(c: Container): WorldData {
   const h = c.header;
-  if (h.format !== 'driveboston-world' || h.version !== 2) throw new Error(`unsupported world file ${h.format} v${h.version}`);
+  if (h.format !== 'driveboston-world' || h.version !== 3) throw new Error(`unsupported world file ${h.format} v${h.version}`);
   const a = c.arrays;
   const rect = h.rect as LocalRect;
   const terrainMeta = h.terrain as { vertsX: number; vertsZ: number; cellM: number };
@@ -212,6 +224,14 @@ export function parseWorld(c: Container): WorldData {
       seed: a.modelSeed as Uint16Array,
       name: a.modelName as Uint16Array,
       unit: (h.models as { positionUnitM: number }).positionUnitM,
+    },
+    furniture: {
+      count: (a.furnKind as Uint8Array).length,
+      kind: a.furnKind as Uint8Array,
+      xyz: a.furnXYZ as Float32Array,
+      yaw: a.furnYaw as Float32Array,
+      size: a.furnSize as Float32Array,
+      seed: a.furnSeed as Uint16Array,
     },
     names,
     spawns: h.spawns as SpawnPoint[],

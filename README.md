@@ -16,8 +16,10 @@ the Charles to Huntington Avenue), daytime only, no traffic. The streets,
 curbs, bridges, underpasses and 5,000 buildings are the real ones at their
 real heights, 2,600 of them as the city's own 3D models with their real roofs
 and towers; the roads are flat asphalt with lane paint, crosswalks and stop
-lines drawn from the street network; lawns and the river keep the 2025 aerial
-imagery; and the car collides with all of it. See [docs/decisions.md](docs/decisions.md) for the direction and
+lines drawn from the street network; trees, lamps, traffic signals, stop signs
+and benches stand where the city's inventories and OpenStreetMap put them;
+lawns and the river keep the 2025 aerial imagery; and the car collides with all
+of it. See [docs/decisions.md](docs/decisions.md) for the direction and
 [docs/perf-log.md](docs/perf-log.md) for measurements.
 
 | | |

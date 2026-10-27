@@ -20,7 +20,7 @@ Files are committed gzipped (`.bin.gz`) and inflated in the browser with
 
 Individual formats are documented here as they are added by the pipeline.
 
-## World file: `public/data/<box>/world.bin.gz`, format `driveboston-world` version 2
+## World file: `public/data/<box>/world.bin.gz`, format `driveboston-world` version 3
 
 One file per box with everything the runtime needs except the imagery.
 
@@ -68,6 +68,11 @@ Arrays, in order:
 | `modelStyle` | u8 | Facade style as for parts |
 | `modelSeed` | u16 | Per-model random seed |
 | `modelName` | u16 | Index into `names` (the city's catalogue name, usually an address) |
+| `furnKind` | u8 | Street furniture kind: 0 tree, 1 pedestal lamp, 2 cobra-head lamp, 3 traffic signal, 4 stop sign, 5 bench, 6 hydrant |
+| `furnXYZ` | f32 | Position per item, x y z; y is the burned ground height |
+| `furnYaw` | f32 | Rotation about y in radians; the object's local +x faces this way (a signal or stop face looks at the traffic it addresses, a cobra arm reaches over the road) |
+| `furnSize` | f32 | Tree height in metres, 1 for everything else |
+| `furnSeed` | u16 | Per-item random seed |
 
 Building models come from the Boston Planning Department's citywide 3D model
 (OBJ release). Models whose status is Current, Complete or Under Construction
@@ -79,6 +84,14 @@ lidar terrain. A model whose projected footprint lies mostly on road cells of
 the ground mask is dropped, since the roadway there has been flattened. The
 runtime groups each model's triangles into planar clusters
 and derives the facade coordinates from them (`src/world/models.ts`).
+
+Street furniture comes from the city's tree, street light and traffic signal
+inventories and from OpenStreetMap nodes (trees, lamps, stop signs, benches,
+hydrants). Signals are one pole per approach at every signalised junction, at
+the right-hand curb beside the stop line. Items that would stand on the
+roadway, in a building or in the water are moved onto the nearest open ground
+within 3 m or dropped; `counts.furniture` is the item total. The runtime draws
+each kind as one instanced mesh of merged primitives (`src/world/furniture.ts`).
 
 ## Imagery: `public/data/<box>/img/<cx>_<cz>.webp`
 
