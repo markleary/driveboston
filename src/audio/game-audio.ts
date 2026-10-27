@@ -64,6 +64,21 @@ export class GameAudio {
     return this.mutedFlag;
   }
 
+  /** The AudioContext state, or 'not-started' before the first gesture. */
+  get contextState(): string {
+    return this.context?.state ?? 'not-started';
+  }
+
+  /** Clips decoded so far. */
+  get loaded(): number {
+    return this.buffers.size;
+  }
+
+  /** Clips that could not be fetched or decoded. */
+  get failedCount(): number {
+    return this.failed.size;
+  }
+
   /** A read-only snapshot for the diagnostics. */
   get status(): { context: string; loaded: number; failed: string[]; rpm: number; gear: number } {
     return { context: this.context?.state ?? 'not-started', loaded: this.buffers.size, failed: [...this.failed], rpm: Math.round(this.rpm), gear: this.gear + 1 };
@@ -203,7 +218,8 @@ export class GameAudio {
     await Promise.all(
       [...LOOPS, ...ONE_SHOTS].map(async (name) => {
         try {
-          const response = await fetch(`${this.base}${name}.mp3`, { signal: AbortSignal.timeout(15_000) });
+          // Generous: a software-rendered page (hosted CI) gives the main thread a turn only every few seconds, and 15 s let every clip time out there.
+          const response = await fetch(`${this.base}${name}.mp3`, { signal: AbortSignal.timeout(120_000) });
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           let buffer = await context.decodeAudioData(await response.arrayBuffer());
           const loop = LOOPS.includes(name);

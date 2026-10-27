@@ -433,6 +433,9 @@ export class App {
       d.physics.stepMs = this.physics.stepMs;
       d.audio.ready = this.audio.ready;
       d.audio.muted = this.audio.muted;
+      d.audio.context = this.audio.contextState;
+      d.audio.loaded = this.audio.loaded;
+      d.audio.failed = this.audio.failedCount;
     }
     if (d.frame % 10 === 0) this.devTools?.update(d.fps, `street ${this.streetLabel.street} ${this.streetLabel.cross ? '& ' + this.streetLabel.cross : ''}\ncamera ${this.gameCamera.mode}  heading ${this.vehicle.headingDeg.toFixed(0)}`);
   }

@@ -50,6 +50,8 @@ for (const variant of ['default', 'webgl'] as const) {
 }
 
 test('a key press starts the sound and the minimap draws', async ({ page }) => {
+  // A software-rendered runner takes minutes to load the scene and seconds per frame afterwards, so the clips arrive slowly there.
+  test.setTimeout(process.env.CI ? 900_000 : 120_000);
   const consoleErrors: string[] = [];
   page.on('console', (m) => {
     if (m.type() === 'error') consoleErrors.push(m.text());
@@ -58,9 +60,9 @@ test('a key press starts the sound and the minimap draws', async ({ page }) => {
   await page.waitForFunction(() => window.__DRIVE_BOSTON__?.ready === true, null, { timeout: 360_000 });
   await page.waitForFunction(() => (window.__DRIVE_BOSTON__?.frame ?? 0) > 2);
   await page.keyboard.press('KeyW');
-  await page.waitForFunction(() => window.__DRIVE_BOSTON__?.audio.ready === true, null, { timeout: 60_000 });
-  const status = await page.evaluate(() => window.__DRIVE_BOSTON__!.audio);
-  expect(status).toMatchObject({ ready: true, muted: false });
+  await expect
+    .poll(() => page.evaluate(() => window.__DRIVE_BOSTON__!.audio), { timeout: process.env.CI ? 300_000 : 60_000, message: 'the sound did not start after the key press' })
+    .toMatchObject({ ready: true, muted: false });
   const minimap = await page.locator('#minimap').screenshot();
   const png = PNG.sync.read(minimap);
   const shades = new Set<number>();
