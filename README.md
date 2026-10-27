@@ -57,7 +57,7 @@ The dev server runs at http://127.0.0.1:5188/driveboston/.
 Other commands: `npm test` (unit tests), `npm run test:e2e` (browser tests:
 smoke, a scripted lap of Back Bay and the screenshots; needs
 `npx playwright install chromium` once; hosted CI has no GPU and runs only
-the smoke tests), `npm run build`
+the smoke tests, against the production build), `npm run build`
 (static site in `dist/`), `npm run check` (refuses secrets and other forbidden
 content), `npm run geo -- --box backbay` (rebuilds the world data from the
 downloaded sources, see `tools/`).

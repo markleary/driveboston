@@ -33,8 +33,8 @@ for (const variant of ['default', 'webgl'] as const) {
     await page.goto(variant === 'webgl' ? '?webgl' : '');
     // Hosted CI renders in software at under one frame per second, so the waits
     // allow minutes and ask for only a handful of frames.
-    await page.waitForFunction(() => window.__DRIVE_BOSTON__?.ready === true, null, { timeout: 240_000 });
-    await page.waitForFunction(() => (window.__DRIVE_BOSTON__?.frame ?? 0) > 5);
+    await page.waitForFunction(() => window.__DRIVE_BOSTON__?.ready === true, null, { timeout: 360_000 });
+    await page.waitForFunction(() => (window.__DRIVE_BOSTON__?.frame ?? 0) > 2);
 
     const backend = await page.evaluate(() => window.__DRIVE_BOSTON__?.backend);
     if (variant === 'webgl') expect(backend).toBe('webgl2');

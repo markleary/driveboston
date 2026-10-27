@@ -7,10 +7,12 @@ export default defineConfig({
   // Hosted runners have no GPU and render this scene in software at well under
   // one frame per second, which puts the fixed-step simulation into slow
   // motion; the timed driving tests only mean something on a real GPU, so CI
-  // keeps the smoke tests and gives them minutes instead of seconds.
+  // keeps the smoke tests, serves them the production build (the dev server
+  // hands the browser well over a thousand unbundled modules, which a slow
+  // runner takes minutes over) and gives them minutes instead of seconds.
   testIgnore: process.env.CI ? ['**/drive.spec.ts'] : [],
   workers: 1,
-  timeout: process.env.CI ? 300_000 : 120_000,
+  timeout: process.env.CI ? 480_000 : 120_000,
   expect: { timeout: 10_000 },
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
@@ -18,12 +20,19 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://127.0.0.1:5188/driveboston/',
-    reuseExistingServer: true,
-    timeout: 30_000,
-  },
+  webServer: process.env.CI
+    ? {
+        command: 'npm run build && npx vite preview --port 5188 --strictPort',
+        url: 'http://127.0.0.1:5188/driveboston/',
+        reuseExistingServer: false,
+        timeout: 180_000,
+      }
+    : {
+        command: 'npm run dev',
+        url: 'http://127.0.0.1:5188/driveboston/',
+        reuseExistingServer: true,
+        timeout: 30_000,
+      },
   projects: [
     {
       name: 'desktop-chromium',
