@@ -144,6 +144,23 @@ the drops, and the test that finds hydro-flattened river cells in the lidar no
 longer counts inside road corridors, where a trench at the river's level is a
 ramp.
 
+## D21. Real building meshes from the city's 3D model
+The Boston Planning Department publishes a citywide 3D building model as OBJ
+tiles under the PDDL. The pipeline reads the tiles the box touches, keeps the
+models that stand today (Current, Complete or Under Construction; Building,
+Structure or Wall), measures the city's State Plane shift from each catalogue
+rather than assuming it, measures the vertical datum against the lidar terrain
+the same way and lowers models that still float, and packs each model's
+triangles into the world file at 2 cm precision about its own origin. The
+runtime groups a model's triangles into planar clusters and feeds them to the
+same facade shader as the extrusions, so Trinity Church, the Hancock tower and
+the Commonwealth Avenue mansards keep their shapes while the brick, stone and
+glass stay procedural. Footprint parts a model covers keep their colliders but
+are not drawn. The city's data has ramp walls, barriers and misplaced pieces
+on the flattened roadways, so a model standing mostly on road cells is dropped
+and counted in the report. Facade styles come from the covered footprint, or
+from the catalogue name for a few landmarks.
+
 ## Log
 
 | Date | Change | Why |
@@ -156,3 +173,4 @@ ramp.
 | 2026-10-26 | Driving browser tests run only on a machine with a GPU; hosted CI keeps the smoke tests, served from the production build, with long waits | GitHub runners render in software below 1 fps, so the fixed-step simulation falls into slow motion and timed driving means nothing there; the 28-minute run also burned Actions minutes |
 | 2026-10-26 | Roads became ribbons with analytic paint; widths from lanes and measured curbs with recentring; approach decks at the Mass Ave cut; imagery kept only for grass, water, roofs and a tint | Owner's review of the demo: the roads read as a satellite photo, with terrain where the surface should be flat |
 | 2026-10-27 | Terrain burn resolves roads at different levels by corridor ownership, with walls between them; road-surface scan in the pipeline report | The owner fell into a 5 m pit on Huntington Avenue where the Turnpike on-ramp's trench had been burned into the street |
+| 2026-10-27 | Real building meshes from the city's 3D model replace the extrusions they cover; models standing on the roadway are dropped | The owner compared the demo with a second prototype whose landmarks read as themselves; extruded footprints could not |

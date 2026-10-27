@@ -22,6 +22,8 @@ export interface TestHooks {
   setIntent(intent: { throttle: number; steer: number; handbrake?: boolean; boost?: boolean } | null): void;
   /** Snaps the car back onto the nearest road. */
   resetToRoad(): void;
+  /** Raycasts from the game camera through a point in normalised device coordinates; the nearest hits, for debugging. */
+  pick(nx: number, ny: number): { name: string; distance: number; point: [number, number, number]; faceIndex: number }[];
 }
 
 declare global {

@@ -6,6 +6,7 @@ import { loadLocalDem } from './terrain.ts';
 import { buildRoadGraph } from './roads.ts';
 import { buildGround, geoJsonToLocalRings, readGeoJson } from './groundmask.ts';
 import { buildBuildings, loadOsmBuildingHeights } from './buildings.ts';
+import { buildModels } from './models.ts';
 import { buildImagery } from './imagery.ts';
 import { packWorld, resolveSpawns } from './pack.ts';
 import { rawPath } from './lib/download.ts';
@@ -59,6 +60,10 @@ export async function buildBox(box: LonLatBox): Promise<void> {
   sections.push({ title: 'Buildings', lines: buildings.report });
   lap('buildings');
 
+  const models = buildModels(fetched.modelTileKeys, rect, ground.spec, ground.burned, ground.mask, buildings.parts);
+  sections.push({ title: 'Building models', lines: models.report });
+  lap('models');
+
   const outDir = path.join('public/data', box.name);
   mkdirSync(outDir, { recursive: true });
   const imagery = await buildImagery(box.name, rect, CHUNK_M, fetched.tileRange, path.join(outDir, 'img'));
@@ -67,7 +72,7 @@ export async function buildBox(box: LonLatBox): Promise<void> {
 
   const spawnReport: string[] = [];
   const spawns = resolveSpawns(graph, spawnReport);
-  const packed = packWorld(box, rect, CHUNK_M, dem, graph, ground, buildings, imagery, spawns, IMAGERY_ZOOM);
+  const packed = packWorld(box, rect, CHUNK_M, dem, graph, ground, buildings, models, imagery, spawns, IMAGERY_ZOOM);
   writeFileSync(path.join(outDir, 'world.bin.gz'), packed.gz);
   sections.push({ title: 'Spawns', lines: spawnReport });
   sections.push({ title: 'World file', lines: packed.report });

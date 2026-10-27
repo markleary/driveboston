@@ -5,6 +5,7 @@ import { fetchCached, mapLimit, rawPath } from './lib/download.ts';
 import { boxToLocalRect, localRectToLonLatBox } from './lib/frame.ts';
 import { overpass } from './lib/overpass.ts';
 import { tileRangeForBox } from './lib/tiles.ts';
+import { MODEL_SOURCE, modelTileKey, modelTileUrl, tilesForRect } from './lib/bos3d.ts';
 import type { LonLatBox } from '../src/shared/frame.ts';
 
 /** Chunk size in metres; the local rectangle snaps to it so chunks tile the box exactly. */
@@ -28,6 +29,10 @@ export const SOURCES = {
     licence: 'PDDL',
     layer: 'https://gisportal.boston.gov/arcgis/rest/services/Infrastructure/OpenData/MapServer/0',
   },
+  models: {
+    source: MODEL_SOURCE.source,
+    licence: MODEL_SOURCE.licence,
+  },
   imagery: {
     source: 'MassGIS 2025 Aerial Imagery tile service',
     licence: 'Public records, no restrictions; acknowledgement requested',
@@ -44,12 +49,15 @@ export interface FetchResult {
   osmBuildingsKey: string;
   tileKeys: { x: number; y: number; key: string }[];
   tileRange: ReturnType<typeof tileRangeForBox>;
+  /** Raw keys of the city's 3D building model tiles covering the rectangle. */
+  modelTileKeys: string[];
 }
 
 const isTiff = (b: Uint8Array, ct: string): string | null =>
   b[0] === 0x49 && b[1] === 0x49 && b[2] === 0x2a ? null : `not a little-endian TIFF (${ct})`;
 const isImage = (b: Uint8Array, ct: string): string | null =>
   (b[0] === 0xff && b[1] === 0xd8) || (b[0] === 0x89 && b[1] === 0x50) ? null : `not a JPEG or PNG tile (${ct})`;
+const isZip = (b: Uint8Array, ct: string): string | null => (b[0] === 0x50 && b[1] === 0x4b ? null : `not a zip archive (${ct})`);
 
 export async function fetchBox(box: LonLatBox, force = false): Promise<FetchResult> {
   const rect = boxToLocalRect(box, MARGIN_M, CHUNK_M);
@@ -146,6 +154,15 @@ out skel qt;`;
   const osmBuildings = await overpass(osmBuildingsKey, buildingQuery, force);
   console.log(`  ${osmBuildings.elements.length} OSM building elements`);
 
+  console.log('fetching 3D building model tiles');
+  const modelTileKeys: string[] = [];
+  for (const tile of tilesForRect(rect)) {
+    const key = modelTileKey(box.name, tile);
+    await fetchCached({ key, url: modelTileUrl(tile), ...SOURCES.models, force, validate: isZip, timeoutMs: 900_000, retries: 2 });
+    modelTileKeys.push(key);
+    console.log(`  ${tile}`);
+  }
+
   console.log(`fetching imagery tiles at zoom ${IMAGERY_ZOOM}`);
   const tileRange = tileRangeForBox(ll, IMAGERY_ZOOM);
   const tiles: { x: number; y: number; key: string }[] = [];
@@ -169,5 +186,5 @@ out skel qt;`;
   });
   console.log(`  ${tiles.length} tiles (${tileRange.maxX - tileRange.minX + 1} x ${tileRange.maxY - tileRange.minY + 1})`);
 
-  return { rect, demKey, buildingsPath, sidewalksPath, osmKey, osmBuildingsKey, tileKeys: tiles, tileRange };
+  return { rect, demKey, buildingsPath, sidewalksPath, osmKey, osmBuildingsKey, tileKeys: tiles, tileRange, modelTileKeys };
 }

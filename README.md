@@ -1,7 +1,8 @@
 # Drive Boston
 
 A browser driving game set in the real streets of Boston. The street network,
-curbs, building footprints and heights come from public geographic data; roofs,
+curbs, building footprints and the city's 3D building models come from public
+geographic data; roofs,
 lawns and water are textured with public-domain aerial imagery; roads, lane
 paint, sidewalks and facades are procedural. The car is a generic sedan on a
 rigid-body vehicle model.
@@ -13,7 +14,8 @@ Play it at https://markleary.github.io/driveboston/
 Proof of concept: Back Bay only (Massachusetts Avenue to the Public Garden,
 the Charles to Huntington Avenue), daytime only, no traffic. The streets,
 curbs, bridges, underpasses and 5,000 buildings are the real ones at their
-real heights; the roads are flat asphalt with lane paint, crosswalks and stop
+real heights, 2,600 of them as the city's own 3D models with their real roofs
+and towers; the roads are flat asphalt with lane paint, crosswalks and stop
 lines drawn from the street network; lawns and the river keep the 2025 aerial
 imagery; and the car collides with all of it. See [docs/decisions.md](docs/decisions.md) for the direction and
 [docs/perf-log.md](docs/perf-log.md) for measurements.
@@ -75,7 +77,8 @@ a static site.
 Every data source, its licence and the required attribution is listed in
 [NOTICE.md](NOTICE.md). Map data © OpenStreetMap contributors (ODbL). Aerial
 imagery and elevation from MassGIS and the USGS 3D Elevation Program. Building
-and street data from the City of Boston (Analyze Boston, PDDL).
+footprints, 3D building models and street data from the City of Boston
+(Analyze Boston and the Planning Department, PDDL).
 
 ## Licence
 

@@ -21,6 +21,7 @@ import {
 import type { WorldData } from './data.ts';
 import type { StaticGeometry } from './curbs.ts';
 import type { ChunkTextures } from './imagery.ts';
+import { PART_FLAG } from '../shared/buildings.ts';
 
 export interface BuildingChunkGeometry extends StaticGeometry {
   uvs: number[];
@@ -44,7 +45,7 @@ function emptyChunk(): BuildingChunkGeometry {
  * the facade shader, and a flat roof triangulated with earcut. Geometry is
  * grouped by the chunk under the part's first vertex.
  */
-export function buildBuildingGeometry(world: WorldData): Map<number, BuildingChunkGeometry> {
+export function buildBuildingGeometry(world: WorldData, options: { skipCovered?: boolean } = {}): Map<number, BuildingChunkGeometry> {
   const chunks = new Map<number, BuildingChunkGeometry>();
   const b = world.buildings;
   const chunkKey = (x: number, z: number): number => {
@@ -53,6 +54,7 @@ export function buildBuildingGeometry(world: WorldData): Map<number, BuildingChu
     return cz * world.chunksX + cx;
   };
   for (let p = 0; p < b.count; p += 1) {
+    if (options.skipCovered && (b.flags[p] & PART_FLAG.covered) !== 0) continue;
     const base = b.base[p];
     const roof = b.roof[p];
     const height = roof - base;
@@ -146,7 +148,22 @@ export function buildBuildingGeometry(world: WorldData): Map<number, BuildingChu
   return chunks;
 }
 
-export function buildingGeometryToThree(g: BuildingChunkGeometry): THREE.BufferGeometry {
+type NumberArray = number[] | Float32Array;
+
+/** What the facade material needs per vertex; footprint extrusions and city models both produce it. */
+export interface BuildingAttributes {
+  positions: NumberArray;
+  normals: NumberArray;
+  uvs: NumberArray;
+  style: NumberArray;
+  seed: NumberArray;
+  roof: NumberArray;
+  wallLen: NumberArray;
+  height: NumberArray;
+  indices: number[] | Uint32Array;
+}
+
+export function buildingGeometryToThree(g: BuildingAttributes): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(g.positions, 3));
   geometry.setAttribute('normal', new THREE.Float32BufferAttribute(g.normals, 3));
@@ -162,7 +179,7 @@ export function buildingGeometryToThree(g: BuildingChunkGeometry): THREE.BufferG
   return geometry;
 }
 
-/** Facade palette by style id: red brick, brown brick, brownstone, limestone, granite, painted, glass, concrete. */
+/** Facade palette by style id: red brick, brown brick, brownstone, limestone, granite, painted, glass, concrete, plain (no windows). */
 const PALETTE = [
   [0.5, 0.24, 0.17],
   [0.38, 0.24, 0.17],
@@ -172,6 +189,7 @@ const PALETTE = [
   [0.8, 0.77, 0.7],
   [0.3, 0.36, 0.42],
   [0.6, 0.58, 0.55],
+  [0.64, 0.6, 0.55],
 ];
 
 /**
@@ -229,7 +247,9 @@ export function createFacadeMaterial(textures: ChunkTextures, chunkMinX: number,
   // Curtain wall: glass bands with mullions.
   const mullion = fract(u.div(1.5)).lessThan(0.05);
   const bandWindow = fv.greaterThan(0.12).and(mullion.not()).and(belowRoof);
-  const isWindow = select(isGlassTower, bandWindow, gridWindow);
+  // Plain walls (garden walls, sheds, parapets) get neither windows nor trim.
+  const plain = style.greaterThan(7.5);
+  const isWindow = select(isGlassTower, bandWindow, gridWindow).and(plain.not());
 
   const perWindow = hash(bayIdx.add(floorIdx.mul(131)).add(seed.mul(7919)));
   const glassDark = vec3(0.07, 0.09, 0.12);
@@ -245,8 +265,8 @@ export function createFacadeMaterial(textures: ChunkTextures, chunkMinX: number,
   const plinthColor = vec3(0.42, 0.42, 0.4);
 
   let wall: Node<'vec3'> = select(isGlassTower, towerWall, baseColor);
-  wall = select(cornice, corniceColor, wall);
-  wall = select(plinth.and(isGlassTower.not()), plinthColor, wall);
+  wall = select(cornice.and(plain.not()), corniceColor, wall);
+  wall = select(plinth.and(isGlassTower.not()).and(plain.not()), plinthColor, wall);
   wall = select(isWindow, glass, wall);
 
   // Roof from the chunk's imagery.

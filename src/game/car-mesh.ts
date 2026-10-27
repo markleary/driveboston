@@ -5,6 +5,8 @@ import { CHASSIS } from '../physics/vehicle.ts';
 export interface CarMesh {
   group: THREE.Group;
   wheels: THREE.Object3D[];
+  /** Glass and roof, hidden in the driver's-seat view so the eye is not inside them. */
+  cabin: THREE.Object3D[];
 }
 
 /** A generic sedan built from primitives, nose along +x, in chassis coordinates (centre 0.83 m above the ground at rest). */
@@ -36,8 +38,10 @@ export function createCarMesh(wheelRadius: number): CarMesh {
   add(new RoundedBoxGeometry(1.4, 0.14, width - 0.3, 2, 0.05), paint, 1.35, 0.08, 0);
   add(new RoundedBoxGeometry(1.1, 0.12, width - 0.3, 2, 0.05), paint, -1.55, 0.07, 0);
   // Cabin glass and painted roof.
-  add(new RoundedBoxGeometry(2.25, 0.56, width - 0.3, 3, 0.2), glass, -0.2, 0.36, 0);
-  add(new RoundedBoxGeometry(1.75, 0.06, width - 0.44, 2, 0.02), paint, -0.25, 0.65, 0);
+  const cabin = [
+    add(new RoundedBoxGeometry(2.25, 0.56, width - 0.3, 3, 0.2), glass, -0.2, 0.36, 0),
+    add(new RoundedBoxGeometry(1.75, 0.06, width - 0.44, 2, 0.02), paint, -0.25, 0.65, 0),
+  ];
   // Lights and mirrors.
   for (const side of [-1, 1]) {
     add(new THREE.BoxGeometry(0.08, 0.14, 0.42), headlight, length / 2 - 0.02, -0.1, side * (width / 2 - 0.3));
@@ -63,5 +67,5 @@ export function createCarMesh(wheelRadius: number): CarMesh {
     wheel.add(tyre, rim, hub);
     wheels.push(wheel);
   }
-  return { group, wheels };
+  return { group, wheels, cabin };
 }

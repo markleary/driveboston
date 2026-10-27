@@ -47,8 +47,26 @@ export interface WorldData {
     roof: Float32Array;
     style: Uint8Array;
     seed: Uint16Array;
+    /** `PART_FLAG` bits; a covered part keeps its collider but is drawn by a city model instead. */
+    flags: Uint8Array;
     count: number;
   };
+  /** The city's building meshes, quantised about per-model origins (see docs/formats.md). */
+  models: {
+    count: number;
+    vertexStart: Uint32Array;
+    indexStart: Uint32Array;
+    xyz: Int16Array;
+    index: Uint16Array;
+    origin: Float32Array;
+    style: Uint8Array;
+    seed: Uint16Array;
+    name: Uint16Array;
+    /** Metres per position unit. */
+    unit: number;
+  };
+  /** Shared string table: street names, then model names. */
+  names: string[];
   spawns: SpawnPoint[];
   waterLevel: number;
   imagery: { dir: string; pixelsPerChunk: number; format: string };
@@ -99,7 +117,7 @@ export async function loadWorld(url: string, onProgress?: (fraction: number) => 
 
 export function parseWorld(c: Container): WorldData {
   const h = c.header;
-  if (h.format !== 'driveboston-world' || h.version !== 1) throw new Error(`unsupported world file ${h.format} v${h.version}`);
+  if (h.format !== 'driveboston-world' || h.version !== 2) throw new Error(`unsupported world file ${h.format} v${h.version}`);
   const a = c.arrays;
   const rect = h.rect as LocalRect;
   const terrainMeta = h.terrain as { vertsX: number; vertsZ: number; cellM: number };
@@ -180,8 +198,22 @@ export function parseWorld(c: Container): WorldData {
       roof: a.partRoof as Float32Array,
       style: a.partStyle as Uint8Array,
       seed: a.partSeed as Uint16Array,
+      flags: a.partFlags as Uint8Array,
       count: partRingStart.length - 1,
     },
+    models: {
+      count: (a.modelVertexStart as Uint32Array).length - 1,
+      vertexStart: a.modelVertexStart as Uint32Array,
+      indexStart: a.modelIndexStart as Uint32Array,
+      xyz: a.modelXYZ as Int16Array,
+      index: a.modelIndex as Uint16Array,
+      origin: a.modelOrigin as Float32Array,
+      style: a.modelStyle as Uint8Array,
+      seed: a.modelSeed as Uint16Array,
+      name: a.modelName as Uint16Array,
+      unit: (h.models as { positionUnitM: number }).positionUnitM,
+    },
+    names,
     spawns: h.spawns as SpawnPoint[],
     waterLevel: h.waterLevel as number,
     imagery: h.imagery as { dir: string; pixelsPerChunk: number; format: string },

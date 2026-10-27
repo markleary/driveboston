@@ -20,7 +20,7 @@ Files are committed gzipped (`.bin.gz`) and inflated in the browser with
 
 Individual formats are documented here as they are added by the pipeline.
 
-## World file: `public/data/<box>/world.bin.gz`, format `driveboston-world` version 1
+## World file: `public/data/<box>/world.bin.gz`, format `driveboston-world` version 2
 
 One file per box with everything the runtime needs except the imagery.
 
@@ -30,7 +30,9 @@ string), `rect` (local rectangle in metres, snapped to chunks), `chunkM` (256),
 `heightUnit` cm), `maskGrid` (`cellM` 1, `width`, `height`), `waterLevel`
 (metres NAVD88), `datumShift` (metres subtracted from the city's building
 elevations), `names` (string table for street names), `spawns` (name, x, y, z,
-headingDeg, street), `imagery` (dir, pixelsPerChunk, zoom, format), `counts`.
+headingDeg, street), `imagery` (dir, pixelsPerChunk, zoom, format), `models`
+(`positionUnitM`, the source and release of the city's 3D building models and
+the measured `shift` in State Plane feet and metres), `counts`.
 
 Arrays, in order:
 
@@ -55,8 +57,28 @@ Arrays, in order:
 | `ringXZ` | f32 | Ring vertices, x z per vertex. Outer rings have positive signed area in (x, z), holes negative |
 | `partBase` | f32 | Bottom of the walls (metres), 40 cm below the lowest ground along the outline |
 | `partRoof` | f32 | Roof elevation (metres) |
-| `partStyle` | u8 | Facade style: 0 red brick, 1 brown brick, 2 brownstone, 3 limestone, 4 granite, 5 painted, 6 glass, 7 concrete |
+| `partStyle` | u8 | Facade style: 0 red brick, 1 brown brick, 2 brownstone, 3 limestone, 4 granite, 5 painted, 6 glass, 7 concrete, 8 plain (no windows) |
 | `partSeed` | u16 | Per-part random seed |
+| `partFlags` | u8 | Bit 1: covered by a building model; the part keeps its collider but is not drawn |
+| `modelVertexStart` | u32 | Start vertex index into `modelXYZ` per building model, plus a final total |
+| `modelIndexStart` | u32 | Start index into `modelIndex` per model, plus a final total |
+| `modelXYZ` | i16 | Model vertices, x y z per vertex in units of `models.positionUnitM` (2 cm) relative to the model's origin |
+| `modelIndex` | u16 | Triangle vertex indices local to each model, counter-clockwise seen from outside |
+| `modelOrigin` | f32 | Origin per model, x y z; y is the lowest terrain under the model, where the facade's metres-up start |
+| `modelStyle` | u8 | Facade style as for parts |
+| `modelSeed` | u16 | Per-model random seed |
+| `modelName` | u16 | Index into `names` (the city's catalogue name, usually an address) |
+
+Building models come from the Boston Planning Department's citywide 3D model
+(OBJ release). Models whose status is Current, Complete or Under Construction
+and whose type is Building, Structure or Wall are kept. Their coordinates are
+State Plane feet with the city's shift applied; the pipeline measures that shift
+from each catalogue as the median difference between the lon/lat centroids and
+the shifted centroids, and measures the vertical datum the same way against the
+lidar terrain. A model whose projected footprint lies mostly on road cells of
+the ground mask is dropped, since the roadway there has been flattened. The
+runtime groups each model's triangles into planar clusters
+and derives the facade coordinates from them (`src/world/models.ts`).
 
 ## Imagery: `public/data/<box>/img/<cx>_<cz>.webp`
 

@@ -7,6 +7,7 @@ import { lonLatToLocal } from './lib/frame.ts';
 import type { GeoJsonCollection } from './lib/arcgis.ts';
 import type { OsmData, OsmNode, OsmWay } from './lib/overpass.ts';
 import type { LocalRect } from '../src/shared/frame.ts';
+import { STYLE } from '../src/shared/buildings.ts';
 
 export interface BuildingPart {
   rings: Pt[][];
@@ -67,8 +68,7 @@ export interface BuildingsResult {
 const FT = 0.3048;
 const DEFAULT_HEIGHT_M = 12;
 
-/** Facade styles the runtime material understands. */
-export const STYLE = { brickRed: 0, brickBrown: 1, brownstone: 2, limestone: 3, granite: 4, painted: 5, glass: 6, concrete: 7 } as const;
+export { STYLE };
 
 function hash32(n: number): number {
   let x = (n ^ 0x9e3779b9) >>> 0;
@@ -202,7 +202,8 @@ export function buildBuildings(fc: GeoJsonCollection, rect: LocalRect, terrainSp
   return { parts, datumShift, report };
 }
 
-function pickStyle(height: number, area: number, p: Record<string, unknown>, seed: number): number {
+/** Facade style from a part's height, footprint area, land use code and seed. */
+export function pickStyle(height: number, area: number, p: Record<string, unknown>, seed: number): number {
   const r = (seed % 1000) / 1000;
   const use = String(p.PART_USE ?? '');
   if (height > 60) return r < 0.6 ? STYLE.glass : STYLE.concrete;

@@ -9,6 +9,7 @@ import { loadWorld, type WorldData } from '../world/data.ts';
 import { loadChunkTextures, type ChunkTextures } from '../world/imagery.ts';
 import { buildTerrainChunk } from '../world/terrain.ts';
 import { buildBuildingGeometry, buildingGeometryToThree, createFacadeMaterial } from '../world/buildings.ts';
+import { buildModelGeometry } from '../world/models.ts';
 import { buildCurbGeometry, createCurbMaterial, geometryFromStatic, type StaticGeometry } from '../world/curbs.ts';
 import { buildBridgeGeometry, createBridgeMaterial } from '../world/bridges.ts';
 import { buildRoadGeometry } from '../world/road-geometry.ts';
@@ -165,7 +166,10 @@ export class App {
     const { world } = this;
     this.loading.set('Raising the buildings', 0.76);
     await nextFrame();
-    const buildings = buildBuildingGeometry(world);
+    // Footprints covered by a city model are drawn by the model; every footprint keeps its collider.
+    const buildings = buildBuildingGeometry(world, { skipCovered: true });
+    const colliders = buildBuildingGeometry(world);
+    const models = buildModelGeometry(world);
     const curbs = buildCurbGeometry(world);
     const curbMaterial = createCurbMaterial();
     const bridges = buildBridgeGeometry(world);
@@ -178,16 +182,28 @@ export class App {
         const minX = world.rect.minX + cx * world.chunkM;
         const minZ = world.rect.minZ + cz * world.chunkM;
         const statics: StaticGeometry[] = [];
+        let facade: THREE.MeshStandardNodeMaterial | null = null;
+        const facadeMaterial = () => (facade ??= createFacadeMaterial(textures[key], minX, minZ, world.chunkM));
         const b = buildings.get(key);
         if (b && b.indices.length) {
-          const mesh = new THREE.Mesh(buildingGeometryToThree(b), createFacadeMaterial(textures[key], minX, minZ, world.chunkM));
+          const mesh = new THREE.Mesh(buildingGeometryToThree(b), facadeMaterial());
           mesh.castShadow = true;
           mesh.receiveShadow = true;
           mesh.matrixAutoUpdate = false;
           mesh.name = `buildings ${cx},${cz}`;
           this.scene.add(mesh);
-          statics.push(b);
         }
+        const m = models.get(key);
+        if (m && m.indexCount) {
+          const mesh = new THREE.Mesh(buildingGeometryToThree(m), facadeMaterial());
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          mesh.matrixAutoUpdate = false;
+          mesh.name = `models ${cx},${cz}`;
+          this.scene.add(mesh);
+        }
+        const col = colliders.get(key);
+        if (col && col.indices.length) statics.push(col);
         const c = curbs.get(key);
         if (c && c.indices.length) {
           const mesh = new THREE.Mesh(geometryFromStatic(c), curbMaterial);
@@ -242,6 +258,14 @@ export class App {
         this.scriptedIntent = intent ? { throttle: intent.throttle, steer: intent.steer, handbrake: intent.handbrake ?? false, boost: intent.boost ?? false } : null;
       },
       resetToRoad: () => this.resetToRoad(),
+      pick: (nx, ny) => {
+        const ray = new THREE.Raycaster();
+        ray.setFromCamera(new THREE.Vector2(nx, ny), this.gameCamera.camera);
+        return ray
+          .intersectObjects(this.scene.children, true)
+          .slice(0, 4)
+          .map((h) => ({ name: h.object.name, distance: h.distance, point: [h.point.x, h.point.y, h.point.z] as [number, number, number], faceIndex: h.faceIndex ?? -1 }));
+      },
     };
   }
 
@@ -293,6 +317,8 @@ export class App {
 
     const speed = this.vehicle.speedMps;
     this.gameCamera.update(dt, this.renderPos, this.renderQuat, speed);
+    // The driver's eye sits inside the cabin; its glass and roof would otherwise fill the top of the view.
+    for (const part of this.carMesh.cabin) part.visible = this.gameCamera.mode !== 'first';
     this.sky.follow(this.renderPos);
     resizeRenderer(this.renderer, this.camera);
     this.renderer.render(this.scene, this.camera);

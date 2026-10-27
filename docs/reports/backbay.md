@@ -32,7 +32,19 @@ Generated 2026-10-27. Box 42.344, 42.357, -71.092, -71.068; local rectangle x -2
 - 5465 source parts: 5352 kept, 27 skipped by type, 2 too small or low, 84 outside the box
 - elevation datum: source ground (feet to metres) minus DEM has median -0.05 m, 10th to 90th percentile spread 1.27 m, over 4982 parts
 - 61 parts without a city height take OpenStreetMap heights; 317 use 12 m; largest footprints without any height: 2853 m2, 1172 m2, 1100 m2, 582 m2, 562 m2
-- styles: brickRed 2009, brickBrown 562, brownstone 1727, limestone 684, granite 115, painted 101, glass 101, concrete 53
+- styles: brickRed 2009, brickBrown 562, brownstone 1727, limestone 684, granite 115, painted 101, glass 101, concrete 53, plain 0
+
+## Building models
+
+- 6 tiles, 7679 catalogue rows, 2773 in the box (status: Current 2672, History 69, Approved Demo 15, Board Approved 7, Complete 6, Under Construction 4; type: Wall 1639, Building 1100, Bridge 17, Dock 17)
+- 2648 models kept (Current, Complete or Under Construction; Building, Structure or Wall), 0 without usable geometry
+- State Plane shift measured from the catalogue: east 731099.8 ft, north 2902903.2 ft (2nd to 98th percentile spread 4.1 and 4.2 ft)
+- vertical datum: model ground (feet to metres) minus DEM has median -2.20 m, 10th to 90th percentile spread 2.54 m over 2648 models; 1957 floating models lowered onto the terrain
+- 53 models standing mostly on the roadway dropped (60% or more of their footprint on road cells; 2619 m2 of road under them, tallest 27.9 m)
+- 2595 models packed with 244807 vertices and 396212 triangles; 0 too large to quantise
+- 4914 of 5352 footprint parts are covered by a model and will not be drawn (218 more are partly covered); 1757 models cover no footprint part
+- styles: plain 1479, brickRed 426, brownstone 260, limestone 149, brickBrown 130, painted 65, granite 37, concrete 30, glass 19
+- styled by name: Prudential Redevelopment (Parcel 4 and 6) (glass); John Hancock Tower: Restaurant/Retail/Parking (glass); 1 Dalton Street (glass); 1 Dalton Street (glass); Christian Science Church (limestone); Old South Church (brownstone); Trinity Church (brownstone); Boston Public Library (granite); 50 DALTON ST (glass); 67 CHURCH ST (brownstone); Arlington Street Church (brownstone); Liberty Mutual (glass); 52 CHURCH ST (brownstone); 16 CHURCH ST (brownstone); 45 CHURCH ST (brownstone); 34 CHURCH ST (brownstone)
 
 ## Imagery
 
@@ -52,5 +64,5 @@ Generated 2026-10-27. Box 42.344, 42.357, -71.092, -71.068; local rectangle x -2
 
 ## World file
 
-- world file 7.09 MB raw, 1.78 MB gzipped
-- arrays: heights 2020 kB, mask 4032 kB, nodeXYZ 10 kB, linkNodes 9 kB, linkPointStart 5 kB, linkPoints 72 kB, linkClass 1 kB, linkFlags 1 kB, linkWidth 5 kB, linkLanes 1 kB, linkName 2 kB, linkSpeed 5 kB, curbStart 2 kB, curbPoints 168 kB, partRingStart 21 kB, ringStart 21 kB, ringXZ 486 kB, partBase 21 kB, partRoof 21 kB, partStyle 5 kB, partSeed 10 kB
+- world file 11.03 MB raw, 3.84 MB gzipped
+- arrays: heights 2020 kB, mask 4032 kB, nodeXYZ 10 kB, linkNodes 9 kB, linkPointStart 5 kB, linkPoints 72 kB, linkClass 1 kB, linkFlags 1 kB, linkWidth 5 kB, linkLanes 1 kB, linkName 2 kB, linkSpeed 5 kB, curbStart 2 kB, curbPoints 168 kB, partRingStart 21 kB, ringStart 21 kB, ringXZ 486 kB, partBase 21 kB, partRoof 21 kB, partStyle 5 kB, partSeed 10 kB, partFlags 5 kB, modelVertexStart 10 kB, modelIndexStart 10 kB, modelXYZ 1434 kB, modelIndex 2322 kB, modelOrigin 30 kB, modelStyle 3 kB, modelSeed 5 kB, modelName 5 kB

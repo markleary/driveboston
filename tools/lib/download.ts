@@ -53,7 +53,12 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** Returns the cached file if present, else downloads it with retries and records it. */
 export async function fetchCached(opts: FetchOptions): Promise<Uint8Array> {
   const file = path.join(RAW_ROOT, opts.key);
-  if (!opts.force && existsSync(file)) return new Uint8Array(readFileSync(file));
+  if (!opts.force && existsSync(file)) {
+    // A file placed here by an earlier or external download still gets its manifest entry.
+    const bytes = new Uint8Array(readFileSync(file));
+    if (!readManifest()[opts.key]) record(opts, bytes);
+    return bytes;
+  }
   const retries = opts.retries ?? 4;
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt += 1) {
@@ -73,17 +78,7 @@ export async function fetchCached(opts: FetchOptions): Promise<Uint8Array> {
       if (problem) throw new Error(`${problem} (${opts.url})`);
       mkdirSync(path.dirname(file), { recursive: true });
       writeFileSync(file, bytes);
-      const manifest = readManifest();
-      manifest[opts.key] = {
-        key: opts.key,
-        url: opts.url,
-        retrieved: new Date().toISOString(),
-        bytes: bytes.length,
-        sha256: createHash('sha256').update(bytes).digest('hex'),
-        licence: opts.licence,
-        source: opts.source,
-      };
-      writeManifest(manifest);
+      record(opts, bytes);
       return bytes;
     } catch (err) {
       lastError = err;
@@ -97,6 +92,20 @@ export async function fetchCached(opts: FetchOptions): Promise<Uint8Array> {
 
 export function rawPath(key: string): string {
   return path.join(RAW_ROOT, key);
+}
+
+function record(opts: Pick<FetchOptions, 'key' | 'url' | 'source' | 'licence'>, bytes: Uint8Array): void {
+  const manifest = readManifest();
+  manifest[opts.key] = {
+    key: opts.key,
+    url: opts.url,
+    retrieved: new Date().toISOString(),
+    bytes: bytes.length,
+    sha256: createHash('sha256').update(bytes).digest('hex'),
+    licence: opts.licence,
+    source: opts.source,
+  };
+  writeManifest(manifest);
 }
 
 /** Runs tasks with bounded concurrency, preserving order of results. */

@@ -8,6 +8,8 @@ import { LINK_FLAG, ROAD_CLASS } from '../src/shared/roads.ts';
 import type { RoadGraph } from './roads.ts';
 import type { GroundResult } from './groundmask.ts';
 import type { BuildingsResult } from './buildings.ts';
+import { POSITION_UNIT_M, type ModelsResult } from './models.ts';
+import { MODEL_SOURCE } from './lib/bos3d.ts';
 import type { ImageryResult } from './imagery.ts';
 
 export interface Spawn {
@@ -144,6 +146,7 @@ export function packWorld(
   graph: RoadGraph,
   ground: GroundResult,
   buildings: BuildingsResult,
+  models: ModelsResult,
   imagery: ImageryResult,
   spawns: Spawn[],
   imageryZoom: number,
@@ -268,6 +271,36 @@ export function packWorld(
   });
   partRingStart[parts.length] = ri;
   ringStart[ringCount] = pi;
+  const partFlags = models.partFlags.length === parts.length ? models.partFlags : new Uint8Array(parts.length);
+
+  // Building models: quantised vertices about each model's origin, u16 triangle indices per model.
+  const modelList = models.models;
+  const modelVertexStart = new Uint32Array(modelList.length + 1);
+  const modelIndexStart = new Uint32Array(modelList.length + 1);
+  let modelVerts = 0;
+  let modelIdx = 0;
+  modelList.forEach((m, i) => {
+    modelVertexStart[i] = modelVerts;
+    modelIndexStart[i] = modelIdx;
+    modelVerts += m.xyz.length / 3;
+    modelIdx += m.index.length;
+  });
+  modelVertexStart[modelList.length] = modelVerts;
+  modelIndexStart[modelList.length] = modelIdx;
+  const modelXYZ = new Int16Array(modelVerts * 3);
+  const modelIndex = new Uint16Array(modelIdx);
+  const modelOrigin = new Float32Array(modelList.length * 3);
+  const modelStyle = new Uint8Array(modelList.length);
+  const modelSeed = new Uint16Array(modelList.length);
+  const modelName = new Uint16Array(modelList.length);
+  modelList.forEach((m, i) => {
+    modelXYZ.set(m.xyz, modelVertexStart[i] * 3);
+    modelIndex.set(m.index, modelIndexStart[i]);
+    modelOrigin.set(m.origin, i * 3);
+    modelStyle[i] = m.style;
+    modelSeed[i] = m.seed;
+    modelName[i] = nameId(m.name);
+  });
 
   const arrays: Record<string, TypedArray> = {
     heights,
@@ -291,11 +324,20 @@ export function packWorld(
     partRoof,
     partStyle,
     partSeed,
+    partFlags,
+    modelVertexStart,
+    modelIndexStart,
+    modelXYZ,
+    modelIndex,
+    modelOrigin,
+    modelStyle,
+    modelSeed,
+    modelName,
   };
   const raw = writeContainer(
     {
       format: 'driveboston-world',
-      version: 1,
+      version: 2,
       created: new Date().toISOString().slice(0, 10),
       box: { name: box.name, south: box.south, north: box.north, west: box.west, east: box.east },
       frame: FRAME,
@@ -309,7 +351,8 @@ export function packWorld(
       names,
       spawns,
       imagery: { dir: 'img', pixelsPerChunk: imagery.pixelsPerChunk, zoom: imageryZoom, format: 'webp' },
-      counts: { nodes: graph.nodes.length, links: links.length, curbs: ground.curbs.length, parts: parts.length },
+      models: { positionUnitM: POSITION_UNIT_M, source: MODEL_SOURCE.source, release: MODEL_SOURCE.release, shift: models.shift },
+      counts: { nodes: graph.nodes.length, links: links.length, curbs: ground.curbs.length, parts: parts.length, models: modelList.length },
     },
     arrays,
   );

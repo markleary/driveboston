@@ -32,6 +32,7 @@
     "@types/proj4": "2.19.0",
     "@types/three": "0.186.0",
     "earcut": "3.2.4",
+    "fflate": "^0.8.3",
     "geotiff": "3.0.5",
     "pngjs": "7.0.0",
     "proj4": "2.22.0",
